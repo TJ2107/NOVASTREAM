@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <!-- Background Gradient (OLED Black with subtle Crimson Glow) -->
+    <radialGradient id="bgGlow" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#1c0507" />
+      <stop offset="70%" stop-color="#080808" />
+      <stop offset="100%" stop-color="#000000" />
+    </radialGradient>
+
+    <!-- Cinema Red Gradient for Nova Symbol -->
+    <linearGradient id="cinemaRed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF2E3B" />
+      <stop offset="50%" stop-color="#E50914" />
+      <stop offset="100%" stop-color="#8E040B" />
+    </linearGradient>
+
+    <!-- Titanium Chrome Gradient -->
+    <linearGradient id="titanium" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="60%" stop-color="#E1E1E6" />
+      <stop offset="100%" stop-color="#9898A0" />
+    </linearGradient>
+
+    <!-- Outer Rim Neon Glow Filter -->
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="starGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- App Icon Squircle Container -->
+  <rect width="512" height="512" rx="124" fill="url(#bgGlow)" stroke="rgba(255,255,255,0.12)" stroke-width="6"/>
+
+  <!-- Subtle Radial Inner Ambient Glow -->
+  <circle cx="256" cy="256" r="180" fill="#E50914" opacity="0.16" filter="url(#neonGlow)"/>
+
+  <!-- Stylized "N" & Forward Cinema Playstream Chevron -->
+  <!-- Left Pillar of N -->
+  <path d="M144 140 C144 126.7 154.7 116 168 116 L184 116 C197.3 116 208 126.7 208 140 L208 372 C208 385.3 197.3 396 184 396 L168 396 C154.7 396 144 385.3 144 372 Z" 
+        fill="url(#titanium)" />
+
+  <!-- Diagonal Nova Beam / Play Core -->
+  <path d="M192 136 L324 356 C329.5 365 340 370 351 368 L360 366 C367 364 368 354 362 344 L230 124 C224.5 115 214 110 203 112 L194 114 C187 116 186 126 192 136 Z" 
+        fill="url(#cinemaRed)" filter="url(#neonGlow)" opacity="0.95"/>
+
+  <!-- Right Pillar of N forming Play Triangle Accent -->
+  <path d="M304 140 C304 126.7 314.7 116 328 116 L344 116 C357.3 116 368 126.7 368 140 L368 372 C368 385.3 357.3 396 344 396 L328 396 C314.7 396 304 385.3 304 372 Z" 
+        fill="url(#titanium)" />
+
+  <!-- Cosmic Central Play Triangle -->
+  <polygon points="236,206 316,256 236,306" fill="url(#cinemaRed)" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round" filter="url(#starGlow)"/>
+
+  <!-- Nova Starburst Flare (Upper Right) -->
+  <g transform="translate(376, 120)">
+    <!-- 4-Pointed Radiant Nova Star -->
+    <path d="M0 -34 Q2 -8 24 0 Q2 8 0 34 Q-2 8 -24 0 Q-2 -8 0 -34 Z" fill="#FFFFFF" filter="url(#starGlow)" />
+    <!-- Center core flash -->
+    <circle cx="0" cy="0" r="6" fill="#FFFFFF" />
+    <circle cx="0" cy="0" r="14" fill="#FF2E3B" opacity="0.5" filter="url(#starGlow)" />
+  </g>
+</svg>

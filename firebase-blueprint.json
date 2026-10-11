@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "WatchPartyMessage": {
+      "title": "WatchPartyMessage",
+      "description": "A message in the watch party chat.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderName": { "type": "string" },
+        "avatar": { "type": "string" },
+        "text": { "type": "string" },
+        "timeFormatted": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "senderName", "text", "timestamp"]
+    },
+    "WatchPartyParticipant": {
+      "title": "WatchPartyParticipant",
+      "description": "A participant in the watch party.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "avatar": { "type": "string" },
+        "role": { "type": "string", "enum": ["host", "guest"] },
+        "isOnline": { "type": "boolean" }
+      },
+      "required": ["id", "name", "role", "isOnline"]
+    },
+    "WatchParty": {
+      "title": "WatchParty",
+      "description": "A watch party room.",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "roomName": { "type": "string" },
+        "hostId": { "type": "string" },
+        "isPlaying": { "type": "boolean" },
+        "currentTime": { "type": "number" },
+        "mediaUrl": { "type": "string" }
+      },
+      "required": ["roomId", "roomName", "hostId"]
+    }
+  },
+  "firestore": {
+    "watch-parties/{roomId}": {
+      "schema": "WatchParty",
+      "description": "The root document for a watch party."
+    },
+    "watch-parties/{roomId}/messages/{messageId}": {
+      "schema": "WatchPartyMessage",
+      "description": "Chat messages within a watch party."
+    },
+    "watch-parties/{roomId}/participants/{participantId}": {
+      "schema": "WatchPartyParticipant",
+      "description": "Participants within a watch party."
+    }
+  }
+}

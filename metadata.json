@@ -1,0 +1,6 @@
+{
+  "name": "STREAMBOX",
+  "description": "STREAMBOX - Lecteur multimédia universel PWA pour TV en direct, films, séries et radios.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
