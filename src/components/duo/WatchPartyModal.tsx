@@ -15,7 +15,9 @@ import {
   Volume2,
   Maximize2,
   ShieldCheck,
-  X
+  X,
+  User,
+  Edit3
 } from 'lucide-react';
 import { useWatchPartyStore } from '../../store/useWatchPartyStore';
 import { useDuoStore } from '../../store/useDuoStore';
@@ -27,6 +29,15 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const presetAvatars = [
+  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+  'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&q=80',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
+  'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=150&q=80',
+  'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&q=80',
+  'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=150&q=80'
+];
 
 export function WatchPartyModal({ isOpen, onClose }: Props) {
   const {
@@ -44,7 +55,8 @@ export function WatchPartyModal({ isOpen, onClose }: Props) {
     createRoom,
     joinRoom,
     isHost,
-    setSharedMedia
+    setSharedMedia,
+    updateProfile
   } = useWatchPartyStore();
 
   const { sources } = useAppStore();
@@ -55,6 +67,13 @@ export function WatchPartyModal({ isOpen, onClose }: Props) {
   const [showMediaSelector, setShowMediaSelector] = useState(false);
   const [newRoomTitle, setNewRoomTitle] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  
+  // Profile customization state
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editName, setEditName] = useState(currentUser.name);
+  const [editAvatar, setEditAvatar] = useState(currentUser.avatar);
+  const [editStatus, setEditStatus] = useState(currentUser.statusText || '');
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -159,7 +178,6 @@ export function WatchPartyModal({ isOpen, onClose }: Props) {
                   initialTime={currentTime}
                   autoPlay={isPlaying}
                   onProgress={(time) => {
-                    // Sync time periodically
                     if (Math.abs(time - currentTime) > 3) {
                       syncPlayback(isPlaying, time);
                     }
@@ -196,7 +214,7 @@ export function WatchPartyModal({ isOpen, onClose }: Props) {
                     className="w-full h-full object-cover"
                   />
                 </div>
-              <div className="min-w-0">
+                <div className="min-w-0">
                   <span className="text-xs text-indigo-300 font-mono font-bold block">EN COURS DE VISIONNAGE COMMUN</span>
                   <span className="text-sm font-black text-white truncate block">{sharedMedia?.title}</span>
                 </div>
@@ -298,9 +316,42 @@ export function WatchPartyModal({ isOpen, onClose }: Props) {
             {/* TAB: FRIENDS LIST */}
             {activeTab === 'friends' && (
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                <div className="p-3 rounded-2xl bg-indigo-950/40 border border-indigo-500/20 text-xs text-white/70">
-                  <strong className="text-white block mb-1">Amis connectés dans ce salon :</strong>
-                  Partagez le lien d'invitation pour que vos amis rejoignent instantanément sans installation.
+                {/* Current User Profile Card & Edit Button */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-950/80 to-purple-950/80 border border-indigo-500/30 flex items-center justify-between gap-3 shadow-lg">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.name}
+                      className="w-11 h-11 rounded-full object-cover border-2 border-cyan-400 shadow-md flex-shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-white text-xs truncate">{currentUser.name}</span>
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
+                          {isHost ? 'Hôte' : 'Invité'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-white/60 truncate block">{currentUser.statusText || 'Prêt pour le film 🍿'}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setEditName(currentUser.name);
+                      setEditAvatar(currentUser.avatar);
+                      setEditStatus(currentUser.statusText || '');
+                      setShowProfileModal(true);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition border border-white/10 flex-shrink-0"
+                    title="Personnaliser mon profil"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-cyan-300" />
+                    <span>Modifier</span>
+                  </button>
+                </div>
+
+                <div className="text-[11px] font-bold text-white/80 pt-1">
+                  Amis connectés dans ce salon ({participants.length}) :
                 </div>
 
                 <div className="space-y-2">
@@ -340,6 +391,117 @@ export function WatchPartyModal({ isOpen, onClose }: Props) {
 
           </div>
         </div>
+
+        {/* PROFILE CUSTOMIZATION MODAL */}
+        {showProfileModal && (
+          <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-3xl glass-strong border border-cyan-500/40 p-6 space-y-5 shadow-2xl animate-fadeIn">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-white">Personnaliser votre profil</h3>
+                    <p className="text-xs text-white/60">Modifiez votre pseudo, avatar ou statut pour la Watch Party</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowProfileModal(false)}
+                  className="p-2 rounded-xl glass hover:bg-white/10 text-white/70"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Avatar Preview */}
+              <div className="flex flex-col items-center justify-center space-y-3 py-2">
+                <div className="relative">
+                  <img
+                    src={editAvatar}
+                    alt="Aperçu"
+                    className="w-20 h-20 rounded-full object-cover border-2 border-cyan-400 shadow-xl"
+                  />
+                  <span className="absolute bottom-0 right-0 p-1 rounded-full bg-cyan-500 text-black shadow">
+                    <Check className="w-3.5 h-3.5 font-bold" />
+                  </span>
+                </div>
+
+                {/* Preset Avatars Selection */}
+                <div className="space-y-1.5 w-full">
+                  <span className="text-[11px] text-white/60 font-medium block text-left">Choisir un avatar rapide :</span>
+                  <div className="grid grid-cols-6 gap-2">
+                    {presetAvatars.map((url) => (
+                      <img
+                        key={url}
+                        src={url}
+                        alt="Preset"
+                        onClick={() => setEditAvatar(url)}
+                        className={`w-10 h-10 rounded-full object-cover cursor-pointer transition border-2 ${
+                          editAvatar === url ? 'border-cyan-400 scale-105 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Inputs */}
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-white/80 font-bold">Votre Pseudo / Nom</label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Votre nom dans le salon"
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-cyan-400 transition"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-white/80 font-bold">URL de l'Avatar (Optionnel)</label>
+                  <input
+                    type="text"
+                    value={editAvatar}
+                    onChange={(e) => setEditAvatar(e.target.value)}
+                    placeholder="https://... ou choisissez ci-dessus"
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-cyan-400 transition"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-white/80 font-bold">Statut / Humeur (ex: 🍿 Prêt pour le film)</label>
+                  <input
+                    type="text"
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    placeholder="Ex: Popcorn prêt, bon film à tous !"
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-cyan-400 transition"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setShowProfileModal(false)}
+                  className="px-4 py-2 rounded-xl glass hover:bg-white/10 text-xs text-white/70 font-semibold"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => {
+                    updateProfile(editName, editAvatar, editStatus);
+                    setShowProfileModal(false);
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-black font-extrabold text-xs shadow-lg transition"
+                >
+                  Enregistrer mon profil
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Full Media & Web Sites Selector Modal */}
         <DuoMediaSelectorModal

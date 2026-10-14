@@ -42,6 +42,7 @@ interface WatchPartyState {
   sendReaction: (emoji: string) => void;
   syncPlayback: (isPlaying: boolean, currentTime: number) => void;
   setSharedMedia: (media: MediaItem) => void;
+  updateProfile: (name: string, avatar: string, statusText?: string) => Promise<void>;
 }
 
 export const useWatchPartyStore = create<WatchPartyState>((set, get) => ({
@@ -54,6 +55,7 @@ export const useWatchPartyStore = create<WatchPartyState>((set, get) => ({
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
     role: 'guest',
     isOnline: true,
+    statusText: 'Prêt pour le film 🍿'
   },
   participants: [],
   sharedMedia: null,
@@ -83,7 +85,6 @@ export const useWatchPartyStore = create<WatchPartyState>((set, get) => ({
     });
     
     set({ roomId: newRoomId, roomName, isHost: true, currentUser: hostUser, sharedMedia: media || null });
-    // Host joins room listeners with isHost = true
     await get().joinRoom(newRoomId, hostUser.name, true);
     return newRoomId;
   },
@@ -103,7 +104,7 @@ export const useWatchPartyStore = create<WatchPartyState>((set, get) => ({
       ...user,
       role,
       isOnline: true
-    });
+    }, { merge: true });
     
     // Setup listeners for roomId
     const roomRef = doc(db, 'watch-parties', roomId);
@@ -180,5 +181,23 @@ export const useWatchPartyStore = create<WatchPartyState>((set, get) => ({
       mediaPoster: media.poster || media.logo || ''
     });
     set({ sharedMedia: media });
+  },
+
+  updateProfile: async (name, avatar, statusText) => {
+    const { roomId, currentUser } = get();
+    const updated = { 
+      ...currentUser, 
+      name: name.trim() || currentUser.name, 
+      avatar: avatar.trim() || currentUser.avatar, 
+      statusText: statusText !== undefined ? statusText.trim() : currentUser.statusText 
+    };
+    set({ currentUser: updated });
+    if (roomId) {
+      try {
+        await setDoc(doc(db, 'watch-parties', roomId, 'participants', currentUser.id), updated, { merge: true });
+      } catch (e) {
+        console.error('Error updating profile in watch party:', e);
+      }
+    }
   }
 }));
