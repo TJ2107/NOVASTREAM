@@ -35,6 +35,9 @@ export function Series() {
     return seriesList.find((s) => s.id === id) || null;
   }, [id, seriesList]);
 
+  const PAGE_SIZE = 36;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   const filteredSeries = useMemo(() => {
     if (!search.trim()) return seriesList;
     const q = search.toLowerCase();
@@ -45,6 +48,14 @@ export function Series() {
         (s.description && s.description.toLowerCase().includes(q))
     );
   }, [seriesList, search]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search]);
+
+  const displayedSeries = useMemo(() => {
+    return filteredSeries.slice(0, visibleCount);
+  }, [filteredSeries, visibleCount]);
 
   // Auto-hide top control bar after a delay
   const [showTopBar, setShowTopBar] = useState(true);
@@ -160,16 +171,29 @@ export function Series() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-          {filteredSeries.map((series, idx) => (
-            <ContentCard
-              key={`${series.id}-${idx}`}
-              item={series}
-              progress={continueWatching[series.id]}
-              onClick={() => navigate(`/series/${series.id}`)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {displayedSeries.map((series, idx) => (
+              <ContentCard
+                key={`${series.id}-${idx}`}
+                item={series}
+                progress={continueWatching[series.id]}
+                onClick={() => navigate(`/series/${series.id}`)}
+              />
+            ))}
+          </div>
+
+          {visibleCount < filteredSeries.length && (
+            <div className="flex justify-center pt-8 pb-4">
+              <button
+                onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-bold text-xs flex items-center gap-2 shadow-xl shadow-indigo-950/40 transition transform active:scale-95"
+              >
+                <span>Afficher plus de séries ({filteredSeries.length - visibleCount} restantes)</span>
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Add Modal */}

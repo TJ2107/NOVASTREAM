@@ -18,7 +18,10 @@ import {
   X
 } from 'lucide-react';
 import { useWatchPartyStore } from '../../store/useWatchPartyStore';
+import { useDuoStore } from '../../store/useDuoStore';
 import { VideoPlayer } from '../player/VideoPlayer';
+import { useAppStore } from '../../store/useAppStore';
+import { DuoMediaSelectorModal } from './DuoMediaSelectorModal';
 
 interface Props {
   isOpen: boolean;
@@ -44,9 +47,12 @@ export function WatchPartyModal({ isOpen, onClose }: Props) {
     setSharedMedia
   } = useWatchPartyStore();
 
+  const { sources } = useAppStore();
+  const { activeMedia } = useDuoStore();
   const [inputMessage, setInputMessage] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
   const [activeTab, setActiveTab] = useState<'watch' | 'chat' | 'friends'>('watch');
+  const [showMediaSelector, setShowMediaSelector] = useState(false);
   const [newRoomTitle, setNewRoomTitle] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -54,6 +60,20 @@ export function WatchPartyModal({ isOpen, onClose }: Props) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (isOpen && !roomId) {
+      const startingMedia = activeMedia || sources[0] || {
+        id: 'demo-bbb',
+        name: 'Big Buck Bunny (HLS)',
+        title: 'Big Buck Bunny (Watch Party Session)',
+        url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+        type: 'movie',
+        group: 'Films VOD'
+      };
+      createRoom('Soirée Ciné & Chill', startingMedia);
+    }
+  }, [isOpen, roomId, createRoom, sources, activeMedia]);
 
   if (!isOpen) return null;
 
@@ -184,7 +204,7 @@ export function WatchPartyModal({ isOpen, onClose }: Props) {
               
               {isHost && (
                 <button
-                  onClick={() => {/* Implement media selection logic */}}
+                  onClick={() => setShowMediaSelector(true)}
                   className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold"
                 >
                   Changer média
@@ -320,6 +340,18 @@ export function WatchPartyModal({ isOpen, onClose }: Props) {
 
           </div>
         </div>
+
+        {/* Full Media & Web Sites Selector Modal */}
+        <DuoMediaSelectorModal
+          isOpen={showMediaSelector}
+          onClose={() => setShowMediaSelector(false)}
+          onSelectMedia={(item) => {
+            setSharedMedia(item);
+            setShowMediaSelector(false);
+          }}
+          title="Changer le programme de la Watch Party"
+          activeMediaId={sharedMedia?.id}
+        />
 
         {/* Modal for creating a new custom Watch Party room */}
         {showCreateModal && (

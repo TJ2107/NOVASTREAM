@@ -16,7 +16,10 @@ import {
   Activity,
   Radio,
   AlertTriangle,
-  HelpCircle
+  HelpCircle,
+  Globe,
+  Apple,
+  Monitor
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { VPNBadge } from '../components/common/VPNBadge';
@@ -44,6 +47,7 @@ export function SettingsPage() {
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [showDnsHelp, setShowDnsHelp] = useState(false);
+  const [compatTab, setCompatTab] = useState<'android' | 'tv' | 'ios' | 'desktop'>('android');
 
   const showToast = (msg: string) => {
     setStatusMessage(msg);
@@ -265,7 +269,119 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* Section 3: Data Management & Factory Reset */}
+      {/* Section 3: Compatibilité Multiplateforme */}
+      <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-6">
+        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+          <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold">
+            <Globe className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Compatibilité Multiplateforme & Installation</h2>
+            <p className="text-xs text-white/50">Guide d'installation et d'optimisation (iOS, Android, Android TV, PC/Mac, TV Connectées)</p>
+          </div>
+        </div>
+
+        {/* Compatibility Tabs */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-2 bg-black/40 rounded-2xl border border-white/10">
+          {[
+            { id: 'android', label: 'Android & Box', icon: Smartphone },
+            { id: 'tv', label: 'Android TV / Fire', icon: Tv },
+            { id: 'ios', label: 'iOS & iPadOS', icon: Apple },
+            { id: 'desktop', label: 'PC, Mac & Linux', icon: Monitor }
+          ].map((tab) => {
+            const IconComp = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setCompatTab(tab.id as any)}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+                  compatTab === tab.id
+                    ? 'bg-[#FF5A5F] text-white shadow-lg accent-glow'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <IconComp className="w-4 h-4" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-4 rounded-2xl bg-black/30 border border-white/5 space-y-4">
+          {compatTab === 'android' && (
+            <div className="space-y-3 animate-fadeIn">
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 mt-0.5 font-bold text-xs">1</div>
+                <div>
+                  <h3 className="font-bold text-xs text-white">Installation PWA Native sur Android</h3>
+                  <p className="text-[11px] text-white/60 mt-0.5">
+                    Ouvrez l'application dans <strong>Google Chrome</strong> sur votre smartphone ou tablette Android. Appuyez sur le menu (trois points en haut à droite) puis sélectionnez <strong>"Installer l'application"</strong> ou <strong>"Ajouter à l'écran d'accueil"</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 mt-0.5 font-bold text-xs">2</div>
+                <div>
+                  <h3 className="font-bold text-xs text-white">Fonctionnalités & Optimisations Android</h3>
+                  <ul className="text-[11px] text-white/60 mt-1 space-y-1 list-disc list-inside">
+                    <li>Mode plein écran immersif sans barres de navigation.</li>
+                    <li>Support matériel complet HLS.js pour les flux vidéo en direct et VOD.</li>
+                    <li>Gestion du proxy de flux intégré pour contourner les blocages CORS.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {compatTab === 'tv' && (
+            <div className="space-y-3 animate-fadeIn">
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                <div className="w-7 h-7 rounded-lg bg-[#FF5A5F]/20 text-[#FF5A5F] flex items-center justify-center flex-shrink-0 mt-0.5 font-bold text-xs">TV</div>
+                <div>
+                  <h3 className="font-bold text-xs text-white">Optimisé pour Android TV, Box IPTV & Fire TV</h3>
+                  <p className="text-[11px] text-white/60 mt-0.5">
+                    NOVASTREAM intègre un <strong>Mode Télécommande (Smart TV)</strong> complet permettant une navigation fluide à l'aide des flèches directionnelles (D-pad) et du bouton Entrée de votre télécommande.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {compatTab === 'ios' && (
+            <div className="space-y-3 animate-fadeIn">
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                <div className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center flex-shrink-0 mt-0.5 font-bold text-xs">iOS</div>
+                <div>
+                  <h3 className="font-bold text-xs text-white">Installation sur iPhone et iPad (Safari)</h3>
+                  <ol className="text-[11px] text-white/70 mt-1.5 space-y-1 list-decimal list-inside">
+                    <li>Ouvrez NOVASTREAM dans <strong>Safari</strong>.</li>
+                    <li>Appuyez sur le bouton <strong>Partager</strong> <span className="font-bold">⎋</span> dans la barre inférieure.</li>
+                    <li>Sélectionnez <strong>"Sur l'écran d'accueil"</strong> puis confirmez.</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {compatTab === 'desktop' && (
+            <div className="space-y-3 animate-fadeIn">
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center flex-shrink-0 mt-0.5 font-bold text-xs">PC</div>
+                <div>
+                  <h3 className="font-bold text-xs text-white">Windows, macOS & Linux (Chrome / Edge / Firefox)</h3>
+                  <p className="text-[11px] text-white/60 mt-0.5">
+                    Cliquez sur l'icône d'installation dans la barre d'adresse de votre navigateur ou utilisez le bouton d'installation de la barre latérale pour installer NOVASTREAM comme application de bureau dédiée.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Section 4: Data Management & Factory Reset */}
       <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-6">
         <div className="flex items-center gap-3 border-b border-white/10 pb-4">
           <div className="w-10 h-10 rounded-xl bg-red-600/20 text-red-400 flex items-center justify-center font-bold">
@@ -308,7 +424,7 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* Section 4: Assistance */}
+      {/* Section 5: Assistance */}
       <div className="glass-strong rounded-3xl p-6 border border-white/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

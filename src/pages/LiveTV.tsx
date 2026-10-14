@@ -80,6 +80,9 @@ export function LiveTV() {
     }
   }, [currentChannel]);
 
+  const PAGE_SIZE = 36;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   // Filter channels in browse view
   const filteredChannels = useMemo(() => {
     return channels.filter((c) => {
@@ -93,6 +96,14 @@ export function LiveTV() {
       return matchSearch && matchCat;
     });
   }, [channels, search, selectedCategory]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search, selectedCategory]);
+
+  const displayedChannels = useMemo(() => {
+    return filteredChannels.slice(0, visibleCount);
+  }, [filteredChannels, visibleCount]);
 
   // View: Live Player with interactive channel guide
   if (id && currentChannel) {
@@ -305,15 +316,28 @@ export function LiveTV() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
-              {filteredChannels.map((channel, idx) => (
-                <ContentCard
-                  key={`${channel.id}-${idx}`}
-                  item={channel}
-                  onClick={() => navigate(`/tv/${channel.id}`)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
+                {displayedChannels.map((channel, idx) => (
+                  <ContentCard
+                    key={`${channel.id}-${idx}`}
+                    item={channel}
+                    onClick={() => navigate(`/tv/${channel.id}`)}
+                  />
+                ))}
+              </div>
+
+              {visibleCount < filteredChannels.length && (
+                <div className="flex justify-center pt-8 pb-4">
+                  <button
+                    onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+                    className="px-6 py-3 rounded-2xl bg-gradient-to-r from-red-600 via-purple-600 to-indigo-600 hover:from-red-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-xl shadow-red-950/40 transition transform active:scale-95"
+                  >
+                    <span>Afficher plus de chaînes ({filteredChannels.length - visibleCount} restantes)</span>
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

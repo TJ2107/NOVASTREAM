@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Play, Star, Radio } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { type MediaItem, useAppStore } from '../../store/useAppStore';
 
 interface ContentCardProps {
@@ -9,9 +8,15 @@ interface ContentCardProps {
   onClick: () => void;
 }
 
-export function ContentCard({ item, progress, onClick }: ContentCardProps) {
-  const { favorites, toggleFavorite, tvMode } = useAppStore();
-  const isFav = favorites.includes(item.id);
+export const ContentCard = memo(function ContentCard({ item, progress, onClick }: ContentCardProps) {
+  const isFav = useAppStore((s) => s.favorites.includes(item.id));
+  const toggleFavorite = useAppStore((s) => s.toggleFavorite);
+  const tvMode = useAppStore((s) => s.tvMode);
+  const [hasError, setHasError] = useState(false);
+  
+  useEffect(() => {
+    setHasError(false);
+  }, [item.id, item.poster, item.logo]);
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -21,9 +26,7 @@ export function ContentCard({ item, progress, onClick }: ContentCardProps) {
   const imageSrc = item.poster || item.logo;
 
   return (
-    <motion.div
-      whileHover={{ scale: 1.03, y: -4 }}
-      whileTap={{ scale: 0.98 }}
+    <div
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -33,21 +36,20 @@ export function ContentCard({ item, progress, onClick }: ContentCardProps) {
       }}
       tabIndex={0}
       role="button"
-      className={`group cursor-pointer flex flex-col rounded-2xl p-2 transition-all relative ${
-        tvMode ? 'tv-focusable' : 'glass hover:border-purple-500/40'
+      className={`group cursor-pointer flex flex-col rounded-2xl p-2 transition-all duration-200 transform hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] relative will-change-transform ${
+        tvMode ? 'tv-focusable' : 'glass hover:border-purple-500/40 hover:shadow-xl hover:shadow-purple-950/20'
       }`}
     >
       {/* Thumbnail Aspect Box */}
       <div className="relative aspect-video rounded-xl overflow-hidden bg-gradient-to-br from-[#12122b] to-[#090918] flex items-center justify-center border border-white/5 group-hover:border-purple-500/30 transition-all">
-        {imageSrc ? (
+        {imageSrc && !hasError ? (
           <img
             src={imageSrc}
             alt={item.title}
             className="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
-            onError={(e) => {
-              (e.currentTarget as HTMLElement).style.display = 'none';
-            }}
+            decoding="async"
+            onError={() => setHasError(true)}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-purple-800/40 to-cyan-800/40 flex items-center justify-center">
@@ -60,7 +62,7 @@ export function ContentCard({ item, progress, onClick }: ContentCardProps) {
         )}
 
         {/* Hover play overlay */}
-        <div className="absolute inset-0 bg-purple-900/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        <div className="absolute inset-0 bg-purple-900/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
           <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/40 shadow-xl group-hover:scale-110 transition-transform">
             <Play className="w-5 h-5 ml-0.5 fill-white" />
           </div>
@@ -119,6 +121,6 @@ export function ContentCard({ item, progress, onClick }: ContentCardProps) {
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
-}
+});

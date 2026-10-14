@@ -9,6 +9,7 @@ import { VPNBadge } from './components/common/VPNBadge';
 import { CastBadge } from './components/common/CastBadge';
 import { DuoBadge } from './components/common/DuoBadge';
 import { useAppStore } from './store/useAppStore';
+import { useAuthStore } from './store/useAuthStore';
 import { useTVRemoteNavigation } from './hooks/useTVRemoteNavigation';
 import { SplashScreen } from './components/common/SplashScreen';
 
@@ -23,12 +24,19 @@ const VPNPage = lazy(() => import('./pages/VPNPage'));
 const DuoPage = lazy(() => import('./pages/DuoPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const MultiViewPage = lazy(() => import('./pages/MultiViewPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
 
 export default function App() {
   const location = useLocation();
   const { tvMode, isInterfaceVisible } = useAppStore();
+  const { initAuth } = useAuthStore();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+
+  // Initialize Firebase Auth listener
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
 
   // Enable TV remote control navigation when TV mode is active
   useTVRemoteNavigation();
@@ -86,6 +94,7 @@ export default function App() {
               <Route path="/vpn" element={<VPNPage />} />
               <Route path="/duo" element={<DuoPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/admin" element={<AdminPage />} />
               <Route path="*" element={<Home />} />
             </Routes>
           </Suspense>

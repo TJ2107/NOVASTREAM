@@ -15,12 +15,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Grid2X2
+  Grid2X2,
+  ShieldAlert,
+  MessageSquarePlus
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { PWAInstallButton } from '../common/PWAInstallButton';
-import { PlatformCompatibilityModal } from '../common/PlatformCompatibilityModal';
 import { NovaLogo } from '../common/NovaLogo';
+import { AuthWidget } from '../auth/AuthWidget';
+import { FeedbackModal } from '../feedback/FeedbackModal';
 
 const navItems = [
   { to: '/', icon: Home, label: 'Accueil' },
@@ -33,6 +37,7 @@ const navItems = [
   { to: '/series', icon: Tv2, label: 'Séries' },
   { to: '/radio', icon: Radio, label: 'Radios' },
   { to: '/library', icon: Library, label: 'Bibliothèque' },
+  { to: '/admin', icon: ShieldAlert, label: 'Module Admin & Logs', isAdmin: true },
   { to: '/settings', icon: SettingsIcon, label: 'Paramètres' }
 ];
 
@@ -46,8 +51,9 @@ export function Sidebar({
   onToggleCollapse: externalToggle 
 }: SidebarProps = {}) {
   const { tvMode, setTVMode, vpnEnabled, vpnServer } = useAppStore();
+  const { isAdmin } = useAuthStore();
   const [internalCollapsed, setInternalCollapsed] = useState(false);
-  const [showCompatibilityModal, setShowCompatibilityModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   // Controlled or local state
   const isCollapsed = externalCollapsed !== undefined ? externalCollapsed : internalCollapsed;
@@ -58,6 +64,8 @@ export function Sidebar({
       setInternalCollapsed(prev => !prev);
     }
   };
+
+  const filteredNavItems = navItems.filter(item => !item.isAdmin || isAdmin);
 
   return (
     <>
@@ -98,7 +106,7 @@ export function Sidebar({
 
         {/* Navigation */}
         <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
-          {navItems.map(({ to, icon: Icon, label, isVpn, isDuo }) => (
+          {filteredNavItems.map(({ to, icon: Icon, label, isVpn, isDuo, isAdmin: itemIsAdmin }) => (
             <NavLink
               key={to}
               to={to}
@@ -117,6 +125,8 @@ export function Sidebar({
                     ? 'text-emerald-400' 
                     : isDuo 
                     ? 'text-[#E50914]' 
+                    : itemIsAdmin 
+                    ? 'text-amber-400' 
                     : ''
                 }`} />
                 {!isCollapsed && <span className="truncate">{label}</span>}
@@ -125,6 +135,11 @@ export function Sidebar({
               {!isCollapsed && isDuo && (
                 <span className="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/40">
                   DUO
+                </span>
+              )}
+              {!isCollapsed && itemIsAdmin && (
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                  ADMIN
                 </span>
               )}
               {!isCollapsed && isVpn && vpnEnabled && (
@@ -136,32 +151,11 @@ export function Sidebar({
           ))}
         </nav>
 
-        {/* Bottom Actions */}
-        <div className="p-2 border-t border-white/[0.08] space-y-1.5">
-          {!isCollapsed && (
-            <div className="px-1">
-              <PWAInstallButton />
-            </div>
-          )}
-
-          <button
-            onClick={() => setShowCompatibilityModal(true)}
-            className={`w-full flex items-center ${isCollapsed ? 'justify-center p-2' : 'gap-2.5 px-2.5 py-1.5'} rounded-xl transition-all text-xs font-medium text-white/70 hover:bg-white/5 hover:text-white glass ${tvMode ? 'tv-focusable' : ''}`}
-            title="Compatibilité iOS, Android, TV et PC"
-            aria-label="Compatibilité multi-plateformes"
-          >
-            <Smartphone className="w-3.5 h-3.5 flex-shrink-0 text-blue-400" />
-            {!isCollapsed && (
-              <div className="flex flex-col text-left leading-tight min-w-0">
-                <span className="text-[11px] font-medium truncate">Compatibilité</span>
-                <span className="text-[9px] text-white/40 font-normal">Multi-écrans</span>
-              </div>
-            )}
-          </button>
-
+        {/* Footer Section: Mode TV, PWA Install, then Auth & Feedback positioned lower for ergonomics */}
+        <div className="p-3 border-t border-white/[0.08] space-y-2.5 bg-black/20">
           <button
             onClick={() => setTVMode(!tvMode)}
-            className={`w-full flex items-center ${isCollapsed ? 'justify-center p-2' : 'gap-2.5 px-2.5 py-1.5'} rounded-xl transition-all text-xs font-medium ${
+            className={`w-full flex items-center ${isCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2'} rounded-xl transition-all text-xs font-medium ${
               tvMode
                 ? 'bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/40 accent-glow'
                 : 'text-white/70 hover:bg-white/5 hover:text-white glass'
@@ -169,20 +163,41 @@ export function Sidebar({
             title="Activer/Désactiver le mode TV"
             aria-label="Mode télécommande TV"
           >
-            <TVIcon className="w-3.5 h-3.5 flex-shrink-0 text-[#E50914]" />
+            <TVIcon className="w-4 h-4 flex-shrink-0 text-[#E50914]" />
             {!isCollapsed && (
               <div className="flex flex-col text-left leading-tight min-w-0">
-                <span className="text-[11px] font-medium truncate">Mode TV {tvMode ? 'Actif' : ''}</span>
-                <span className="text-[9px] text-white/40 font-normal">Télécommande</span>
+                <span className="text-xs font-bold truncate">Mode TV {tvMode ? 'Actif' : ''}</span>
+                <span className="text-[10px] text-white/40 font-normal">Télécommande D-pad</span>
               </div>
             )}
           </button>
+
+          {!isCollapsed && (
+            <div className="px-0.5">
+              <PWAInstallButton />
+            </div>
+          )}
+
+          {/* Divider separating navigation tools from Auth and Feedback */}
+          <div className="border-t border-white/10 pt-2.5 space-y-2">
+            <AuthWidget collapsed={isCollapsed} />
+
+            {!isCollapsed && (
+              <button
+                onClick={() => setShowFeedbackModal(true)}
+                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-indigo-600/30 to-purple-600/30 hover:from-indigo-600/50 hover:to-purple-600/50 border border-indigo-500/30 text-white text-xs font-bold flex items-center justify-center gap-2 transition shadow-md"
+              >
+                <MessageSquarePlus className="w-4 h-4 text-cyan-300" />
+                <span>Donner un avis / Critique</span>
+              </button>
+            )}
+          </div>
         </div>
       </aside>
 
-      <PlatformCompatibilityModal 
-        isOpen={showCompatibilityModal} 
-        onClose={() => setShowCompatibilityModal(false)} 
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
       />
     </>
   );

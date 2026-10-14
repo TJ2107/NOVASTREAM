@@ -98,7 +98,15 @@ async function startServer() {
             'Accept': '*/*'
           }
         },
-        // Strategy 5: Raw Minimalist request (no referer or extra headers)
+        // Strategy 5: La Chaîne L'Équipe specific referer
+        {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Referer': 'https://www.lequipe.fr/',
+            'Origin': 'https://www.lequipe.fr'
+          }
+        },
+        // Strategy 6: Raw Minimalist request (no referer or extra headers)
         {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
@@ -113,7 +121,7 @@ async function startServer() {
       for (const strat of strategies) {
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 8000);
+          const timeoutId = setTimeout(() => controller.abort(), 12000);
 
           response = await fetch(targetUrl, {
             redirect: 'follow',
@@ -131,13 +139,10 @@ async function startServer() {
         }
       }
 
-      if (!response) {
-        throw lastError || new Error('All proxy fetch attempts failed');
-      }
-
-      if (!response.ok) {
+      if (!response || !response.ok) {
         res.setHeader('Access-Control-Allow-Origin', '*');
-        return res.status(response.status).send(`Upstream stream returned HTTP ${response.status}`);
+        res.setHeader('Access-Control-Allow-Headers', '*');
+        return res.status(502).send(`Proxy upstream fetch failed: ${lastError?.message || 'Bad Gateway'}`);
       }
 
       const contentType = response.headers.get('content-type') || '';
@@ -179,7 +184,8 @@ async function startServer() {
       res.send(Buffer.from(arrayBuffer));
     } catch (err: any) {
       console.error('Proxy error for URL:', targetUrl, err?.message || err);
-      res.status(500).send(`Proxy fetch error: ${err?.message || 'Unknown error'}`);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.status(502).send(`Proxy fetch error: ${err?.message || 'Unknown error'}`);
     }
   });
 

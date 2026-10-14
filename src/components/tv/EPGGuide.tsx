@@ -138,6 +138,9 @@ export function EPGGuide({ channels, onSelectChannel }: EPGGuideProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('Tous');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  const PAGE_SIZE = 25;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   // Update clock every 30 seconds for live progress tracking
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 30000);
@@ -159,14 +162,23 @@ export function EPGGuide({ channels, onSelectChannel }: EPGGuideProps) {
     });
   }, [channels, search, selectedCategory]);
 
-  // Generate programs dictionary for filtered channels
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search, selectedCategory]);
+
+  const displayedChannels = useMemo(() => {
+    return filteredChannels.slice(0, visibleCount);
+  }, [filteredChannels, visibleCount]);
+
+  // Generate programs dictionary for displayed channels only (stabilized by day date)
+  const todayDay = now.toDateString();
   const channelPrograms = useMemo(() => {
     const dict: Record<string, EPGProgram[]> = {};
-    filteredChannels.forEach((chan) => {
+    displayedChannels.forEach((chan) => {
       dict[chan.id] = generateProgramsForChannel(chan, now);
     });
     return dict;
-  }, [filteredChannels, now]);
+  }, [displayedChannels, todayDay]);
 
   // Hours list for the header (e.g. 06h to 02h)
   const hours = useMemo(() => {
@@ -267,12 +279,12 @@ export function EPGGuide({ channels, onSelectChannel }: EPGGuideProps) {
             {/* Corner header */}
             <div className="h-12 px-3 flex items-center gap-2 border-b border-white/10 text-xs font-mono font-bold text-white/50 bg-black/90">
               <Tv className="w-3.5 h-3.5 text-[#E50914]" />
-              <span>CHAÎNES ({filteredChannels.length})</span>
+              <span>CHAÎNES ({displayedChannels.length} / {filteredChannels.length})</span>
             </div>
 
             {/* Channels List column */}
             <div className="divide-y divide-white/5">
-              {filteredChannels.map((channel, idx) => (
+              {displayedChannels.map((channel, idx) => (
                 <div
                   key={channel.id}
                   onClick={() => onSelectChannel(channel)}
@@ -328,7 +340,7 @@ export function EPGGuide({ channels, onSelectChannel }: EPGGuideProps) {
 
             {/* Schedule Rows per Channel */}
             <div className="divide-y divide-white/5 min-w-max">
-              {filteredChannels.map((channel) => {
+              {displayedChannels.map((channel) => {
                 const progs = channelPrograms[channel.id] || [];
                 return (
                   <div key={channel.id} className="h-20 flex items-center relative py-1.5">
@@ -400,6 +412,19 @@ export function EPGGuide({ channels, onSelectChannel }: EPGGuideProps) {
             </div>
           </div>
         </div>
+
+        {/* Load More EPG Channels Button */}
+        {visibleCount < filteredChannels.length && (
+          <div className="p-4 text-center border-t border-white/10 bg-black/60 flex items-center justify-center gap-3">
+            <button
+              onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+              className="px-6 py-2.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-500/40 text-xs font-bold text-white transition shadow-lg flex items-center gap-2"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#E50914]" />
+              <span>Afficher plus de chaînes EPG ({filteredChannels.length - visibleCount} restantes)</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Program Details Modal */}

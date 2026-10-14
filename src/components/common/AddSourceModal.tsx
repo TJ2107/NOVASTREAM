@@ -30,6 +30,12 @@ export function AddSourceModal({ isOpen, onClose, onAdded }: Props) {
   const [customTitle, setCustomTitle] = useState('');
   const [mediaType, setMediaType] = useState<MediaType>('live');
   const [selectedPortal, setSelectedPortal] = useState<string | null>(null);
+  
+  // Xtream Codes
+  const [xtreamUrl, setXtreamUrl] = useState('');
+  const [xtreamUser, setXtreamUser] = useState('');
+  const [xtreamPass, setXtreamPass] = useState('');
+  
   const [isResolving, setIsResolving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successInfo, setSuccessInfo] = useState<string | null>(null);
@@ -97,6 +103,56 @@ export function AddSourceModal({ isOpen, onClose, onAdded }: Props) {
     }
   };
 
+  const handleConnectXtream = async () => {
+    if (!xtreamUrl.trim() || !xtreamUser.trim() || !xtreamPass.trim()) {
+      setError('Veuillez remplir tous les champs Xtream Codes (URL, Utilisateur, Mot de passe).');
+      return;
+    }
+
+    setIsResolving(true);
+    setError(null);
+    setSuccessInfo(null);
+
+    try {
+      const cleanBase = xtreamUrl.trim().replace(/\/+$/, '');
+      const apiUrl = `${cleanBase}/player_api.php?username=${encodeURIComponent(xtreamUser.trim())}&password=${encodeURIComponent(xtreamPass.trim())}&action=get_live_streams`;
+      
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(apiUrl)}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) {
+        throw new Error('Échec de connexion au serveur Xtream Codes (Vérifiez vos identifiants ou l\'URL).');
+      }
+
+      const data = await res.json();
+      if (!Array.isArray(data)) {
+        throw new Error('Réponse invalide de l\'API Xtream Codes.');
+      }
+
+      const items: MediaItem[] = data.map((stream: any) => ({
+        id: `xtream-live-${stream.stream_id || Math.random()}`,
+        type: 'live' as MediaType,
+        title: stream.name || 'Canal Xtream',
+        url: `${cleanBase}/live/${xtreamUser.trim()}/${xtreamPass.trim()}/${stream.stream_id}.m3u8`,
+        logo: stream.stream_icon || undefined,
+        group: 'Xtream Live',
+        category: 'general'
+      }));
+
+      if (items.length === 0) {
+        throw new Error('Aucune chaîne trouvée sur ce compte Xtream Codes.');
+      }
+
+      addMultipleSources(items);
+      setSuccessInfo(`Xtream Codes connecté avec succès : ${items.length} chaînes chargées !`);
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de la connexion Xtream Codes.');
+    } finally {
+      setIsResolving(false);
+    }
+  };
   const handlePortalPackAdd = (domain: string) => {
     const items = addPortalPack(domain);
     setSuccessInfo(`Pack complet ${domain.toUpperCase()} activé (TV, Films, Séries, Radios) !`);
@@ -165,6 +221,34 @@ export function AddSourceModal({ isOpen, onClose, onAdded }: Props) {
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Xtream Codes Section */}
+          <div className="mt-4 p-3.5 rounded-xl bg-gradient-to-br from-indigo-900/25 via-blue-900/20 to-cyan-900/25 border border-indigo-500/20 space-y-3">
+             <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-blue-400" />
+              <span>Xtream Codes</span>
+            </span>
+            <input type="text" placeholder="URL API (ex: http://domain:port)" value={xtreamUrl} onChange={e => setXtreamUrl(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-xs text-white" />
+            <div className="flex gap-2">
+              <input type="text" placeholder="Utilisateur" value={xtreamUser} onChange={e => setXtreamUser(e.target.value)} className="flex-1 px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-xs text-white" />
+              <input type="password" placeholder="Mot de passe" value={xtreamPass} onChange={e => setXtreamPass(e.target.value)} className="flex-1 px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-xs text-white" />
+            </div>
+            <button 
+              type="button"
+              onClick={handleConnectXtream} 
+              disabled={isResolving}
+              className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition disabled:opacity-50"
+            >
+              {isResolving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Connexion en cours...</span>
+                </>
+              ) : (
+                <span>Connecter Xtream Codes</span>
+              )}
+            </button>
+          </div>
 
         {/* Section Portails Rapides (vavoo.to, voltop.net, kool.ws, oha.to, huhu.to, vavoo.top) */}
         <div className="mt-4 p-3.5 rounded-xl bg-gradient-to-br from-purple-900/25 via-indigo-900/20 to-cyan-900/25 border border-purple-500/20 space-y-3">

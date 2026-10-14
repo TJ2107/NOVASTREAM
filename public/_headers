@@ -1,0 +1,20 @@
+# Service Worker: Do not cache
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Content-Type: application/javascript; charset=utf-8
+
+# Web Manifest
+/manifest.json
+  Content-Type: application/manifest+json; charset=utf-8
+  Access-Control-Allow-Origin: *
+
+# Vite Static Assets: Cache immuable
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Global headers
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: autoplay=*, fullscreen=*, encrypted-media=*, picture-in-picture=*
+  Access-Control-Allow-Origin: *

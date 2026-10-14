@@ -58,10 +58,12 @@ export function VideoPlayer({
 
   const initialTimeRef = useRef(initialTime);
   const autoPlayRef = useRef(autoPlay);
+  const lastProgressCallRef = useRef<number>(0);
 
   useEffect(() => {
     initialTimeRef.current = initialTime;
     autoPlayRef.current = autoPlay;
+    lastProgressCallRef.current = 0;
   }, [src]);
 
   useEffect(() => {
@@ -440,7 +442,7 @@ export function VideoPlayer({
     return (
       <div className="relative w-full h-full min-h-[360px] bg-black rounded-2xl overflow-hidden flex flex-col">
         {/* Portal & Web Player Header Bar */}
-        <div className="bg-[#0b0b22] px-4 py-2.5 flex items-center justify-between border-b border-purple-500/20 text-xs">
+        <div className="bg-[#0b0b22] px-4 py-3 flex items-center justify-between border-b border-purple-500/20 text-xs gap-3">
           <div className="flex items-center gap-2.5 min-w-0 pr-2">
             {matchedPortal ? (
               <span className="px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 font-mono text-[10px] font-bold flex items-center gap-1 flex-shrink-0">
@@ -448,18 +450,18 @@ export function VideoPlayer({
                 {matchedPortal.toUpperCase()}
               </span>
             ) : (
-              <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse flex-shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse flex-shrink-0" />
             )}
-            <span className="font-semibold truncate text-white/95">
+            <span className="font-semibold truncate text-white/95 text-xs sm:text-sm">
               {title || (matchedPortal ? `Portail ${matchedPortal}` : 'Lecteur Web Intégré')}
             </span>
           </div>
 
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2.5 flex-shrink-0">
             {useIframeFallback && (
               <button
                 onClick={() => setUseIframeFallback(false)}
-                className="text-white/60 hover:text-white transition text-xs"
+                className="px-2.5 py-1.5 rounded-lg glass hover:bg-white/10 text-white/70 hover:text-white transition text-xs font-medium"
               >
                 Retour direct
               </button>
@@ -468,13 +470,32 @@ export function VideoPlayer({
               href={src}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 font-medium text-xs transition"
-              title="Ouvrir dans un nouvel onglet"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-cyan-950/50 transition transform active:scale-95 border border-cyan-400/40"
+              title="Plein écran externe / Ouvrir dans un nouvel onglet"
             >
-              <span className="hidden sm:inline">Plein écran externe</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-3.5 h-3.5 text-cyan-200" />
+              <span className="hidden sm:inline">Plein écran externe / Ouvrir dans un nouvel onglet</span>
+              <span className="sm:hidden">Ouvrir dans un nouvel onglet</span>
             </a>
           </div>
+        </div>
+
+        {/* Helpful Tip Banner for restricted sites (Google, YouTube, etc.) */}
+        <div className="bg-gradient-to-r from-blue-950/70 via-[#0d102d] to-purple-950/70 px-4 py-2 flex items-center justify-between border-b border-white/5 text-[11px] text-white/80">
+          <div className="flex items-center gap-2 min-w-0 truncate">
+            <span className="text-amber-400 text-xs">💡</span>
+            <span className="truncate">
+              Si ce site (ex. Google, YouTube) bloque l'affichage direct dans un cadre, utilisez le bouton ci-dessus pour y accéder instantanément.
+            </span>
+          </div>
+          <a
+            href={src}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cyan-300 hover:text-white font-semibold flex-shrink-0 ml-3 underline"
+          >
+            Accéder directement &rarr;
+          </a>
         </div>
 
         {/* Interactive Web Frame with full media permissions */}
@@ -506,6 +527,12 @@ export function VideoPlayer({
         onPause={() => {
           setPlaying(false);
           setIsInterfaceVisible(true);
+          if (onProgress && videoRef.current) {
+            const t = videoRef.current.currentTime;
+            const dur = videoRef.current.duration;
+            lastProgressCallRef.current = t;
+            onProgress(t, Number.isFinite(dur) && dur > 0 ? dur : undefined);
+          }
         }}
         onWaiting={() => setIsBuffering(true)}
         onPlaying={() => {
@@ -520,7 +547,10 @@ export function VideoPlayer({
           const t = e.currentTarget.currentTime;
           const dur = e.currentTarget.duration;
           setCurrentTime(t);
-          onProgress?.(t, Number.isFinite(dur) && dur > 0 ? dur : undefined);
+          if (onProgress && Math.abs(t - lastProgressCallRef.current) >= 3) {
+            lastProgressCallRef.current = t;
+            onProgress(t, Number.isFinite(dur) && dur > 0 ? dur : undefined);
+          }
         }}
         onDurationChange={(e) => setDuration(e.currentTarget.duration || 0)}
         onEnded={() => {
@@ -587,9 +617,11 @@ export function VideoPlayer({
               href={src}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2.5 glass hover:bg-white/10 rounded-xl text-xs font-medium flex items-center gap-2 transition text-white/70 hover:text-white"
+              className="px-4 py-2.5 bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 rounded-xl text-xs font-semibold flex items-center gap-2 transition text-white shadow-lg shadow-cyan-900/40"
+              title="Plein écran externe / Ouvrir dans un nouvel onglet"
             >
-              <ExternalLink className="w-4 h-4" /> Ouvrir lien direct
+              <ExternalLink className="w-4 h-4 text-cyan-200" />
+              <span>Plein écran externe / Ouvrir dans un nouvel onglet</span>
             </a>
           </div>
 
@@ -697,6 +729,21 @@ export function VideoPlayer({
               <Smartphone className="w-3 h-3 text-cyan-400" />
               <span>DUO TV</span>
             </button>
+
+            {/* External Fullscreen / Open in New Tab Button */}
+            {src && (
+              <a
+                href={src}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold transition border bg-cyan-950/80 border-cyan-400/40 text-cyan-300 hover:text-white hover:border-cyan-300 shadow-sm"
+                title="Plein écran externe / Ouvrir dans un nouvel onglet"
+              >
+                <ExternalLink className="w-3 h-3 text-cyan-400" />
+                <span className="hidden sm:inline">NOUVEL ONGLET</span>
+              </a>
+            )}
 
             {duration > 0 ? (
               <span>VOD</span>

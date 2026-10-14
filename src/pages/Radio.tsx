@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Radio,
   Search,
@@ -32,6 +32,9 @@ export function RadioPage() {
 
   const stations = useMemo(() => sources.filter((s) => s.type === 'radio'), [sources]);
 
+  const PAGE_SIZE = 36;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   const filteredStations = useMemo(() => {
     if (!search.trim()) return stations;
     const q = search.toLowerCase();
@@ -42,6 +45,14 @@ export function RadioPage() {
         (s.description && s.description.toLowerCase().includes(q))
     );
   }, [stations, search]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search]);
+
+  const displayedStations = useMemo(() => {
+    return filteredStations.slice(0, visibleCount);
+  }, [filteredStations, visibleCount]);
 
   const handleStationClick = (station: MediaItem) => {
     const isPortal = SUPPORTED_STREAMING_PORTALS.some((p) => station.url.includes(p));
@@ -184,7 +195,7 @@ export function RadioPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filteredStations.map((station) => {
+          {displayedStations.map((station) => {
             const isCurrent = currentTrack?.id === station.id;
             return (
               <div
@@ -235,6 +246,17 @@ export function RadioPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {visibleCount < filteredStations.length && (
+        <div className="flex justify-center pt-8 pb-4">
+          <button
+            onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+            className="px-6 py-3 rounded-2xl bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold text-xs flex items-center gap-2 shadow-xl shadow-red-950/40 transition transform active:scale-95"
+          >
+            <span>Afficher plus de radios ({filteredStations.length - visibleCount} restantes)</span>
+          </button>
         </div>
       )}
 

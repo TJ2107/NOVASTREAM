@@ -65,15 +65,20 @@ export function Home() {
     () => filteredSources.filter((s) => s.type === 'radio'),
     [filteredSources]
   );
-  const favoriteItems = useMemo(
-    () => cleanSources.filter((s) => favorites.includes(s.id)),
-    [cleanSources, favorites]
-  );
+  const favoriteItems = useMemo(() => {
+    const favSet = new Set(favorites);
+    return cleanSources.filter((s) => favSet.has(s.id));
+  }, [cleanSources, favorites]);
 
   const continueItems = useMemo(() => {
+    if (!continueWatching || Object.keys(continueWatching).length === 0) return [];
+    const map = new Map<string, MediaItem>();
+    for (let i = 0; i < cleanSources.length; i++) {
+      map.set(cleanSources[i].id, cleanSources[i]);
+    }
     return Object.entries(continueWatching)
       .map(([id, progress]) => {
-        const item = cleanSources.find((s) => s.id === id);
+        const item = map.get(id);
         return item ? { item, progress } : null;
       })
       .filter(Boolean) as { item: MediaItem; progress: number }[];

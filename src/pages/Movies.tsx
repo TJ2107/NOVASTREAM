@@ -33,6 +33,9 @@ export function Movies() {
     return movies.find((m) => m.id === id) || null;
   }, [id, movies]);
 
+  const PAGE_SIZE = 36;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   const filteredMovies = useMemo(() => {
     if (!search.trim()) return movies;
     const q = search.toLowerCase();
@@ -43,6 +46,14 @@ export function Movies() {
         (m.description && m.description.toLowerCase().includes(q))
     );
   }, [movies, search]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search]);
+
+  const displayedMovies = useMemo(() => {
+    return filteredMovies.slice(0, visibleCount);
+  }, [filteredMovies, visibleCount]);
 
   // Auto-hide top control bar after a delay
   const [showTopBar, setShowTopBar] = useState(true);
@@ -158,16 +169,29 @@ export function Movies() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-          {filteredMovies.map((movie, idx) => (
-            <ContentCard
-              key={`${movie.id}-${idx}`}
-              item={movie}
-              progress={continueWatching[movie.id]}
-              onClick={() => navigate(`/movies/${movie.id}`)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {displayedMovies.map((movie, idx) => (
+              <ContentCard
+                key={`${movie.id}-${idx}`}
+                item={movie}
+                progress={continueWatching[movie.id]}
+                onClick={() => navigate(`/movies/${movie.id}`)}
+              />
+            ))}
+          </div>
+
+          {visibleCount < filteredMovies.length && (
+            <div className="flex justify-center pt-8 pb-4">
+              <button
+                onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-xl shadow-cyan-950/40 transition transform active:scale-95"
+              >
+                <span>Afficher plus de films ({filteredMovies.length - visibleCount} restants)</span>
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Add Modal */}

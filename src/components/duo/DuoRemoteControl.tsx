@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useDuoStore } from '../../store/useDuoStore';
 import { useAppStore, type MediaItem } from '../../store/useAppStore';
+import { DuoMediaSelectorModal } from './DuoMediaSelectorModal';
 
 export function DuoRemoteControl() {
   const navigate = useNavigate();
@@ -43,6 +44,7 @@ export function DuoRemoteControl() {
 
   const { sources } = useAppStore();
   const [feedbackEffect, setFeedbackEffect] = useState<string | null>(null);
+  const [isMediaSelectorOpen, setIsMediaSelectorOpen] = useState(false);
 
   const triggerHaptic = (btnName: string) => {
     setFeedbackEffect(btnName);
@@ -77,6 +79,30 @@ export function DuoRemoteControl() {
     const m = Math.floor(secs / 60);
     const s = Math.floor(secs % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleNextChannel = () => {
+    const channels = sources.filter((s) => s.type === 'live' || s.group?.includes('Portail'));
+    if (channels.length === 0) return;
+    const currentIdx = channels.findIndex((s) => s.id === activeMedia?.id);
+    const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % channels.length;
+    const nextItem = channels[nextIdx];
+    if (nextItem) {
+      castToTV(nextItem, 0);
+      triggerHaptic(`CH+ : ${nextItem.title}`);
+    }
+  };
+
+  const handlePrevChannel = () => {
+    const channels = sources.filter((s) => s.type === 'live' || s.group?.includes('Portail'));
+    if (channels.length === 0) return;
+    const currentIdx = channels.findIndex((s) => s.id === activeMedia?.id);
+    const prevIdx = currentIdx === -1 ? 0 : (currentIdx - 1 + channels.length) % channels.length;
+    const prevItem = channels[prevIdx];
+    if (prevItem) {
+      castToTV(prevItem, 0);
+      triggerHaptic(`CH- : ${prevItem.title}`);
+    }
   };
 
   const currentMediaTitle = activeMedia?.title || 'Big Buck Bunny (Full Movie)';
@@ -123,6 +149,17 @@ export function DuoRemoteControl() {
         <div className="font-bold text-xs truncate text-white/90">
           {currentMediaTitle}
         </div>
+
+        {/* Bouton direct : Changer de chaîne & sites */}
+        <button
+          onClick={() => setIsMediaSelectorOpen(true)}
+          className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white font-extrabold text-[11px] flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/40 border border-cyan-400/40 transition active:scale-95"
+          title="Ouvrir la liste de toutes les chaînes, films et sites web"
+        >
+          <Tv className="w-3.5 h-3.5 text-cyan-300" />
+          <span>Changer de chaîne & sites</span>
+          <Sparkles className="w-3 h-3 text-amber-300" />
+        </button>
 
         {/* Scrubbable Seek Bar */}
         <div className="space-y-1">
@@ -214,6 +251,36 @@ export function DuoRemoteControl() {
         </span>
       </div>
 
+      {/* Direct TV Channel Zapping Bar: CH-, Chaînes & Sites, CH+ */}
+      <div className="my-2 grid grid-cols-3 gap-1.5">
+        <button
+          onClick={handlePrevChannel}
+          className="py-2 px-1 rounded-xl glass hover:bg-white/10 border border-white/10 active:scale-90 transition flex flex-col items-center justify-center text-white"
+          title="Chaîne précédente (CH -)"
+        >
+          <ChevronLeft className="w-4 h-4 text-cyan-400" />
+          <span className="text-[9px] font-mono font-bold text-white/90">CH -</span>
+        </button>
+
+        <button
+          onClick={() => setIsMediaSelectorOpen(true)}
+          className="py-2 px-1 rounded-xl bg-gradient-to-r from-indigo-600/70 to-purple-600/70 hover:from-indigo-500 hover:to-purple-500 border border-indigo-400/40 active:scale-90 transition flex flex-col items-center justify-center text-white shadow-md"
+          title="Ouvrir la liste de toutes les chaînes et sites web"
+        >
+          <Layers className="w-4 h-4 text-cyan-300" />
+          <span className="text-[9px] font-bold text-cyan-100">Chaînes & Sites</span>
+        </button>
+
+        <button
+          onClick={handleNextChannel}
+          className="py-2 px-1 rounded-xl glass hover:bg-white/10 border border-white/10 active:scale-90 transition flex flex-col items-center justify-center text-white"
+          title="Chaîne suivante (CH +)"
+        >
+          <ChevronRight className="w-4 h-4 text-cyan-400" />
+          <span className="text-[9px] font-mono font-bold text-white/90">CH +</span>
+        </button>
+      </div>
+
       {/* Virtual D-Pad (Navigation Télécommande TV) */}
       <div className="my-2.5 flex flex-col items-center">
         <div className="w-32 h-32 rounded-3xl bg-[#12122b] border border-white/10 relative flex items-center justify-center shadow-inner">
@@ -298,17 +365,13 @@ export function DuoRemoteControl() {
             <span>Plein Écran TV</span>
           </button>
 
-          {/* Quick Cast another demo channel */}
+          {/* Open full media and web sites selector modal */}
           <button
-            onClick={() => {
-              const alternative = sources.find((s) => s.id !== activeMedia?.id) || sources[0];
-              if (alternative) {
-                castToTV(alternative, 0);
-              }
-            }}
-            className="py-2 px-2.5 rounded-xl glass hover:bg-white/10 text-white/80 flex items-center justify-center gap-1.5 text-[11px]"
+            onClick={() => setIsMediaSelectorOpen(true)}
+            className="py-2 px-2.5 rounded-xl bg-gradient-to-r from-indigo-600/80 to-purple-600/80 hover:from-indigo-500 hover:to-purple-500 text-white flex items-center justify-center gap-1.5 text-[11px] font-bold shadow-md shadow-indigo-950/40 border border-indigo-400/30"
+            title="Choisir parmi toutes les chaînes, films, séries, radios et sites web"
           >
-            <Layers className="w-3.5 h-3.5 text-indigo-400" />
+            <Layers className="w-3.5 h-3.5 text-cyan-300" />
             <span>Changer de flux</span>
           </button>
         </div>
@@ -317,9 +380,20 @@ export function DuoRemoteControl() {
       {/* Active haptic feedback pill */}
       {feedbackEffect && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1.5 rounded-full bg-cyan-400 text-black font-black text-xs pointer-events-none animate-ping">
-          COMMANDE ENVOYÉE
+          {feedbackEffect}
         </div>
       )}
+
+      {/* Full Media & Web Sites Selector Modal */}
+      <DuoMediaSelectorModal
+        isOpen={isMediaSelectorOpen}
+        onClose={() => setIsMediaSelectorOpen(false)}
+        onSelectMedia={(selectedItem) => {
+          castToTV(selectedItem, 0);
+          triggerHaptic('FLUX LANCÉ SUR LA TV');
+        }}
+        activeMediaId={activeMedia?.id}
+      />
     </div>
   );
 }

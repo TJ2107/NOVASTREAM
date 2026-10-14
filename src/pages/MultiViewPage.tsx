@@ -290,7 +290,9 @@ function MultiViewSlot({
 
   const channel = slot.channel;
   const effectiveSrc = channel
-    ? channel.url.startsWith('http://')
+    ? channel.url.startsWith('/api/proxy')
+      ? channel.url
+      : channel.url.startsWith('http://') || channel.url.startsWith('https://')
       ? `/api/proxy?url=${encodeURIComponent(channel.url)}`
       : channel.url
     : '';
@@ -307,10 +309,10 @@ function MultiViewSlot({
 
     if (Hls.isSupported() && (effectiveSrc.includes('.m3u8') || !effectiveSrc.includes('.mp4'))) {
       const hls = new Hls({
-        enableWorker: true,
+        enableWorker: false,
         lowLatencyMode: true,
         xhrSetup: (xhr, url) => {
-          if (url.startsWith('http://') || url.startsWith('https://')) {
+          if ((url.startsWith('http://') || url.startsWith('https://')) && !url.includes('/api/proxy')) {
             xhr.open('GET', `/api/proxy?url=${encodeURIComponent(url)}`, true);
           }
         }

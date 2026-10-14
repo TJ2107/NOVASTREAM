@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /watch-parties/{roomId} {
+      allow read, write: if true;
+      
+      match /messages/{messageId} {
+        allow read, write: if true;
+      }
+      
+      match /participants/{participantId} {
+        allow read, write: if true;
+      }
+    }
+
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    match /feedback/{feedbackId} {
+      allow read, write: if true;
+    }
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

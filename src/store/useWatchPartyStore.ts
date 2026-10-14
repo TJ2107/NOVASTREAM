@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db } from '../lib/firebase';
 import { doc, onSnapshot, setDoc, updateDoc, collection, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import type { MediaItem } from './useAppStore';
+import { useDuoStore } from './useDuoStore';
 
 export interface WatchPartyParticipant {
   id: string;
@@ -35,7 +36,7 @@ interface WatchPartyState {
 
   // Actions
   createRoom: (roomName: string, media?: MediaItem) => Promise<string>;
-  joinRoom: (roomId: string, guestName?: string) => void;
+  joinRoom: (roomId: string, guestName?: string, isHost?: boolean) => Promise<void>;
   leaveRoom: () => void;
   sendMessage: (text: string) => void;
   sendReaction: (emoji: string) => void;
@@ -45,7 +46,7 @@ interface WatchPartyState {
 
 export const useWatchPartyStore = create<WatchPartyState>((set, get) => ({
   roomId: '',
-  roomName: '',
+  roomName: 'Soirée Ciné & Chill',
   isHost: false,
   currentUser: {
     id: 'user-' + Math.floor(Math.random() * 1000),
@@ -61,43 +62,84 @@ export const useWatchPartyStore = create<WatchPartyState>((set, get) => ({
   messages: [],
 
   createRoom: async (roomName, media) => {
+    // Stop duo simulator to prevent interference
+    try {
+      useDuoStore.getState().setMode('off');
+    } catch (e) {}
+
     const newRoomId = 'party-' + Math.floor(1000 + Math.random() * 9000);
     const roomRef = doc(db, 'watch-parties', newRoomId);
+    const currentUser = get().currentUser;
+    const hostUser = { ...currentUser, role: 'host' as const };
+
     await setDoc(roomRef, {
       roomName,
-      hostId: get().currentUser.id,
+      hostId: hostUser.id,
       isPlaying: false,
       currentTime: 0,
-      mediaUrl: media?.url || ''
+      mediaUrl: media?.url || '',
+      mediaTitle: media?.title || '',
+      mediaPoster: media?.poster || media?.logo || ''
     });
-    set({ roomId: newRoomId, roomName, isHost: true });
+    
+    set({ roomId: newRoomId, roomName, isHost: true, currentUser: hostUser, sharedMedia: media || null });
+    // Host joins room listeners with isHost = true
+    await get().joinRoom(newRoomId, hostUser.name, true);
     return newRoomId;
   },
 
-  joinRoom: (roomId, guestName) => {
-    set({ roomId });
+  joinRoom: async (roomId, guestName, isHostOverride = false) => {
+    // Stop duo simulator when joining any watch party session
+    try {
+      useDuoStore.getState().setMode('off');
+    } catch (e) {}
+
+    const role = isHostOverride || get().isHost ? 'host' : 'guest';
+    const user = { ...get().currentUser, name: guestName || get().currentUser.name, role };
+    set({ roomId, currentUser: user, isHost: role === 'host' });
+    
+    // Add Participant to Firestore with correct role
+    await setDoc(doc(db, 'watch-parties', roomId, 'participants', user.id), {
+      ...user,
+      role,
+      isOnline: true
+    });
+    
     // Setup listeners for roomId
     const roomRef = doc(db, 'watch-parties', roomId);
-    onSnapshot(roomRef, (doc) => {
-      const data = doc.data();
+    onSnapshot(roomRef, (docSnap) => {
+      const data = docSnap.data();
       if (data) {
-        set({ isPlaying: data.isPlaying, currentTime: data.currentTime, sharedMedia: { ...get().sharedMedia, url: data.mediaUrl } as any });
+        set({ 
+          isPlaying: data.isPlaying, 
+          currentTime: data.currentTime, 
+          roomName: data.roomName || get().roomName,
+          sharedMedia: data.mediaUrl ? {
+            id: 'shared-media',
+            title: data.mediaTitle || 'Programme en direct',
+            url: data.mediaUrl,
+            poster: data.mediaPoster,
+            type: 'movie'
+          } as any : null
+        });
       }
     });
     
     // Participants
     onSnapshot(collection(db, 'watch-parties', roomId, 'participants'), (snapshot) => {
-      const participants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WatchPartyParticipant));
+      const participants = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as WatchPartyParticipant));
       set({ participants });
     });
 
     // Messages
     onSnapshot(query(collection(db, 'watch-parties', roomId, 'messages'), orderBy('timestamp', 'asc')), (snapshot) => {
-      const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WatchPartyMessage));
+      const messages = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as WatchPartyMessage));
       set({ messages });
     });
   },
-  leaveRoom: () => set({ roomId: '', isHost: false, participants: [], messages: [] }),
+
+  leaveRoom: () => set({ roomId: '', isHost: false, participants: [], messages: [], sharedMedia: null }),
+
   sendMessage: async (text) => {
     const { roomId, currentUser } = get();
     if (!roomId) return;
@@ -109,6 +151,7 @@ export const useWatchPartyStore = create<WatchPartyState>((set, get) => ({
       timestamp: serverTimestamp()
     });
   },
+
   sendReaction: async (emoji) => {
     const { roomId, currentUser } = get();
     if (!roomId) return;
@@ -121,14 +164,21 @@ export const useWatchPartyStore = create<WatchPartyState>((set, get) => ({
       reaction: emoji
     });
   },
+
   syncPlayback: async (isPlaying, currentTime) => {
-    const { roomId } = get();
-    if (!roomId) return;
+    const { roomId, isHost } = get();
+    if (!roomId || !isHost) return;
     await updateDoc(doc(db, 'watch-parties', roomId), { isPlaying, currentTime });
   },
+
   setSharedMedia: async (media) => {
-    const { roomId } = get();
-    if (!roomId) return;
-    await updateDoc(doc(db, 'watch-parties', roomId), { mediaUrl: media.url });
+    const { roomId, isHost } = get();
+    if (!roomId || !isHost) return;
+    await updateDoc(doc(db, 'watch-parties', roomId), { 
+      mediaUrl: media.url,
+      mediaTitle: media.title,
+      mediaPoster: media.poster || media.logo || ''
+    });
+    set({ sharedMedia: media });
   }
 }));

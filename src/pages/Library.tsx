@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Library as LibraryIcon,
@@ -41,6 +41,9 @@ export function Library() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const PAGE_SIZE = 40;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   const filtered = useMemo(() => {
     return sources.filter((item) => {
       const matchType = filterType === 'all' || item.type === filterType;
@@ -52,6 +55,14 @@ export function Library() {
       return matchType && matchSearch;
     });
   }, [sources, filterType, search]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [filterType, search]);
+
+  const displayedItems = useMemo(() => {
+    return filtered.slice(0, visibleCount);
+  }, [filtered, visibleCount]);
 
   const handleExport = () => {
     const jsonStr = exportPlaylists();
@@ -232,7 +243,7 @@ export function Library() {
         </div>
       ) : (
         <div className="space-y-1.5">
-          {filtered.map((item, idx) => (
+          {displayedItems.map((item, idx) => (
             <div
               key={`${item.id}-${idx}`}
               className="glass rounded-xl p-2 flex items-center gap-3 hover:border-purple-500/30 transition-all group"
@@ -247,6 +258,8 @@ export function Library() {
                     src={item.logo || item.poster}
                     alt=""
                     className="w-full h-full object-contain p-0.5"
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       (e.currentTarget as HTMLElement).style.display = 'none';
                     }}
@@ -306,6 +319,17 @@ export function Library() {
               </div>
             </div>
           ))}
+
+          {visibleCount < filtered.length && (
+            <div className="flex justify-center pt-4 pb-2">
+              <button
+                onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-950/40 transition transform active:scale-95"
+              >
+                <span>Afficher plus d'éléments ({filtered.length - visibleCount} restants)</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 

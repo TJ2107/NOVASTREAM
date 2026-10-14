@@ -183,8 +183,27 @@ class CastService {
       const context = cast.framework.CastContext.getInstance();
 
       // Request user session (opens native cast dialog)
-      await context.requestSession();
-      const session = context.getCurrentSession();
+      let session: any = null;
+      try {
+        await context.requestSession();
+        session = context.getCurrentSession();
+      } catch (sessionErr: any) {
+        const errorMsg = String(sessionErr?.message || sessionErr?.description || sessionErr?.error || sessionErr || '');
+        if (
+          sessionErr === 'cancel' ||
+          sessionErr === 'session_error' ||
+          errorMsg.includes('cancel') ||
+          errorMsg.includes('session_error') ||
+          sessionErr?.code === 'session_error' ||
+          sessionErr?.error === 'session_error'
+        ) {
+          console.log('[NOVASTREAM Cast] Dialogue Cast fermé ou aucune session active.');
+          return false;
+        }
+        console.warn('[NOVASTREAM Cast] Session request non aboutie:', errorMsg);
+        return false;
+      }
+
       if (!session) return false;
 
       this.currentSession = session;
@@ -206,7 +225,11 @@ class CastService {
         : `${window.location.origin}${streamUrl}`;
 
       const contentType = options.contentType || (options.url.includes('.m3u8') ? 'application/vnd.apple.mpegurl' : 'video/mp4');
+      
+      // Chromecast requires absolute URL and content type in MediaInfo
       const mediaInfo = new chrome.cast.media.MediaInfo(absoluteUrl, contentType);
+      mediaInfo.contentUrl = absoluteUrl; // Explicitly set contentUrl
+      mediaInfo.contentType = contentType; // Explicitly set contentType
 
       mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
       mediaInfo.metadata.title = options.title || 'NOVASTREAM Stream';
@@ -228,14 +251,38 @@ class CastService {
       }
       request.autoplay = true;
 
-      await session.loadMedia(request);
-      this.notifyListeners();
-      return true;
-    } catch (err: any) {
-      if (err !== 'cancel' && err?.message !== 'cancel' && err?.toString?.() !== 'cancel') {
-        console.warn('[NOVASTREAM Cast] Failed to cast via Google Cast:', err);
-        throw err;
+      console.log('[NOVASTREAM Cast] Loading media:', mediaInfo);
+      
+      try {
+        const loadPromise = session.loadMedia(request);
+        const result = await loadPromise;
+        console.log('[NOVASTREAM Cast] Media load successful:', result);
+        this.notifyListeners();
+        return true;
+      } catch (loadErr: any) {
+        const loadErrMsg = String(loadErr?.message || loadErr?.description || loadErr || '');
+        if (loadErrMsg.includes('cancel') || loadErrMsg.includes('session_error')) {
+          console.log('[NOVASTREAM Cast] Chargement média annulé ou interrompu.');
+          return false;
+        }
+        console.warn('[NOVASTREAM Cast] session.loadMedia warning:', loadErr);
+        return false;
       }
+    } catch (err: any) {
+      const errorMsg = String(err?.message || err?.description || err?.error || err || '');
+      const isExpected =
+        err === 'cancel' ||
+        err === 'session_error' ||
+        errorMsg.includes('cancel') ||
+        errorMsg.includes('session_error') ||
+        err?.code === 'session_error' ||
+        err?.error === 'session_error';
+
+      if (isExpected) {
+        console.log('[NOVASTREAM Cast] Cast fermé ou session annulée.');
+        return false;
+      }
+      console.warn('[NOVASTREAM Cast] Notification Cast:', errorMsg);
       return false;
     }
   }
@@ -271,6 +318,11 @@ class CastService {
       this.notifyListeners();
       return true;
     } catch (err: any) {
+      const errMsg = String(err?.message || err || '');
+      if (err?.name === 'NotAllowedError' || errMsg.includes('dismissed') || errMsg.includes('cancel')) {
+        console.log('[NOVASTREAM Cast] Remote Playback prompt dismissed by user.');
+        return false;
+      }
       console.warn('[NOVASTREAM Cast] Remote Playback prompt cancelled or failed:', err);
       return false;
     }

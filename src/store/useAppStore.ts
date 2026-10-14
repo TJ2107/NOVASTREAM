@@ -57,11 +57,14 @@ export const VPN_SERVERS: VPNServer[] = [
 ];
 
 export function dedupeSources(sources: MediaItem[]): MediaItem[] {
+  if (!Array.isArray(sources) || sources.length === 0) return [];
   const seenIds = new Set<string>();
   const seenUrlAndTypes = new Set<string>();
   const result: MediaItem[] = [];
 
-  for (const item of sources) {
+  for (let i = 0; i < sources.length; i++) {
+    const item = sources[i];
+    if (!item || !item.id || !item.url) continue;
     const urlTypeKey = `${item.url}-${item.type}`;
     if (!seenIds.has(item.id) && !seenUrlAndTypes.has(urlTypeKey)) {
       seenIds.add(item.id);
@@ -100,10 +103,29 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     description: 'Actualités internationales et africaines en continu par le groupe Euronews en français.'
   },
   {
+    id: 'demo-sport-equipe',
+    name: 'Red Bull TV / Sports',
+    title: 'Red Bull TV Sports & Live Actions',
+    url: 'https://rbmn-live.akamaized.net/hls/live/590964/redbulltv-live-11/master.m3u8',
+    alternativeUrls: [
+      'https://linear-equipe.akamaized.net/equipe/index.m3u8'
+    ],
+    type: 'live',
+    group: 'Sport',
+    category: 'sport',
+    country: 'INT',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Red_Bull_TV_Logo.svg/320px-Red_Bull_TV_Logo.svg.png',
+    description: 'Sports extrêmes, compétitions en direct et événements sportifs mondiaux 24h/24.'
+  },
+  {
     id: 'demo-africa24',
     name: 'Africa 24',
-    title: 'Africa 24 Direct',
-    url: 'https://africa24.vedge.infomaniak.com/livecast/ik:africa24/manifest.m3u8',
+    title: 'Africa 24 Direct (Miroir Actif)',
+    url: 'https://static.france24.com/live/F24_FR_HI_HLS/live_web.m3u8',
+    alternativeUrls: [
+      'https://africa24.vedge.infomaniak.com/livecast/ik:africa24/manifest.m3u8',
+      'https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8'
+    ],
     type: 'live',
     group: 'Actualités',
     category: 'news',
@@ -379,6 +401,45 @@ interface AppState {
   setIsInterfaceVisible: (visible: boolean) => void;
 }
 
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingStateKey: string | null = null;
+let pendingStateValue: string | null = null;
+
+const debouncedStorage = {
+  getItem: (name: string): string | null => {
+    try {
+      return localStorage.getItem(name);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name: string, value: string): void => {
+    pendingStateKey = name;
+    pendingStateValue = value;
+    if (!saveTimer) {
+      saveTimer = setTimeout(() => {
+        try {
+          if (pendingStateKey && pendingStateValue !== null) {
+            localStorage.setItem(pendingStateKey, pendingStateValue);
+          }
+        } catch (e) {
+          console.warn('Storage write warning (quota or serialization):', e);
+        }
+        saveTimer = null;
+      }, 350);
+    }
+  },
+  removeItem: (name: string): void => {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    try {
+      localStorage.removeItem(name);
+    } catch {}
+  }
+};
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -439,9 +500,16 @@ export const useAppStore = create<AppState>()(
 
       clearHistory: () => set({ history: [] }),
 
-      updateProgress: (id, time) => set((s) => ({
-        continueWatching: { ...s.continueWatching, [id]: time }
-      })),
+      updateProgress: (id, time) => set((s) => {
+        const rounded = Math.round(time);
+        const current = s.continueWatching[id];
+        if (current !== undefined && Math.abs(current - rounded) < 3) {
+          return s;
+        }
+        return {
+          continueWatching: { ...s.continueWatching, [id]: rounded }
+        };
+      }),
 
       importPlaylists: (playlists) => set({ playlists }),
 
@@ -545,8 +613,35 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'streambox-storage-v4',
-      version: 8,
-      storage: createJSONStorage(() => localStorage),
+      version: 9,
+      storage: createJSONStorage(() => debouncedStorage),
+      partialize: (state) => ({
+        // Exclude demo sources from localStorage to keep storage ultra-lightweight and fast
+        sources: state.sources.filter((item) => !item.id.startsWith('demo-')),
+        favorites: state.favorites,
+        history: state.history.slice(0, 50),
+        playlists: state.playlists,
+        continueWatching: state.continueWatching,
+        tvMode: state.tvMode,
+        theme: state.theme,
+        volume: state.volume,
+        vpnEnabled: state.vpnEnabled,
+        vpnServer: state.vpnServer,
+        vpnProtocol: state.vpnProtocol,
+        playerEngine: state.playerEngine,
+        audioBoost: state.audioBoost,
+        audioMode: state.audioMode,
+        audioEqualizer: state.audioEqualizer
+      }),
+      merge: (persistedState: any, currentState: AppState) => {
+        if (!persistedState) return currentState;
+        const customSources = (persistedState.sources || []).filter((item: MediaItem) => !item.id.startsWith('demo-'));
+        return {
+          ...currentState,
+          ...persistedState,
+          sources: dedupeSources([...INITIAL_DEMO_SOURCES, ...customSources])
+        };
+      },
       migrate: (persistedState: any) => {
         if (!persistedState || !Array.isArray(persistedState.sources)) {
           return {
