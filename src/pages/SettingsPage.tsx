@@ -21,7 +21,10 @@ import {
   Apple,
   Monitor,
   User as UserIcon,
-  LogOut
+  LogOut,
+  Share2,
+  Copy,
+  Check
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -52,6 +55,21 @@ export function SettingsPage() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [showDnsHelp, setShowDnsHelp] = useState(false);
   const [compatTab, setCompatTab] = useState<'android' | 'tv' | 'ios' | 'desktop'>('android');
+  const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
+
+  const shareMessages = {
+    x: "🎬 Découvrez NOVASTREAM, la plateforme ultime de streaming cinéma, TV en direct et Live Watch Party ! Films, séries et flux HD sans interruption. 🚀 Rejoignez-moi dès maintenant : https://novastream.app #Novastream #Streaming #Cinema",
+    facebook: "🌟 Envie de vivre une expérience de streaming exceptionnelle ? NOVASTREAM propose des films, des séries en illimité, des chaînes TV du monde entier et des salons Live Watch Party pour regarder vos programmes entre amis ! Venez tester par vous-même 🍿🎬 : https://novastream.app",
+    linkedin: "🚀 Innovation & Divertissement : NOVASTREAM redéfinit l'expérience du streaming multimédia avec une interface moderne, des flux TV mondiaux et des espaces collaboratifs Watch Party. Découvrez la plateforme : https://novastream.app #Tech #Streaming #Innovation #Media"
+  };
+
+  const handleCopyShare = (platform: 'x' | 'facebook' | 'linkedin') => {
+    navigator.clipboard.writeText(shareMessages[platform]).then(() => {
+      setCopiedPlatform(platform);
+      showToast(`Message de partage ${platform.toUpperCase()} copié avec succès !`);
+      setTimeout(() => setCopiedPlatform(null), 3000);
+    });
+  };
 
   const showToast = (msg: string) => {
     setStatusMessage(msg);
@@ -497,6 +515,114 @@ export function SettingsPage() {
             <AlertTriangle className="w-4 h-4" />
             <span>Ouvrir l'Aide DNS</span>
           </button>
+        </div>
+      </div>
+
+      {/* Section 6: Social Sharing Messages */}
+      <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-4">
+        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+          <div className="w-10 h-10 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center font-bold">
+            <Share2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Partager NOVASTREAM</h2>
+            <p className="text-xs text-white/50">Copiez les messages prêts à l'emploi pour vos réseaux sociaux.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* X / Twitter */}
+          <div className="p-4 rounded-2xl glass border border-white/5 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400"></span> X (Twitter)
+                </span>
+                <span className="text-[10px] text-white/40 font-mono">Prêt</span>
+              </div>
+              <p className="text-[11px] text-white/70 line-clamp-4 bg-black/20 p-2.5 rounded-xl border border-white/5 font-sans">
+                {shareMessages.x}
+              </p>
+            </div>
+            <button
+              onClick={() => handleCopyShare('x')}
+              className="w-full py-2.5 px-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 text-xs font-semibold flex items-center justify-center gap-2 transition border border-cyan-500/30 cursor-pointer"
+            >
+              {copiedPlatform === 'x' ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span className="text-emerald-300">Copié !</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4" />
+                  <span>Copier pour X</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Facebook */}
+          <div className="p-4 rounded-2xl glass border border-white/5 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span> Facebook
+                </span>
+                <span className="text-[10px] text-white/40 font-mono">Prêt</span>
+              </div>
+              <p className="text-[11px] text-white/70 line-clamp-4 bg-black/20 p-2.5 rounded-xl border border-white/5 font-sans">
+                {shareMessages.facebook}
+              </p>
+            </div>
+            <button
+              onClick={() => handleCopyShare('facebook')}
+              className="w-full py-2.5 px-3 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 text-xs font-semibold flex items-center justify-center gap-2 transition border border-blue-500/30 cursor-pointer"
+            >
+              {copiedPlatform === 'facebook' ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span className="text-emerald-300">Copié !</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4" />
+                  <span>Copier pour Facebook</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* LinkedIn */}
+          <div className="p-4 rounded-2xl glass border border-white/5 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500"></span> LinkedIn
+                </span>
+                <span className="text-[10px] text-white/40 font-mono">Prêt</span>
+              </div>
+              <p className="text-[11px] text-white/70 line-clamp-4 bg-black/20 p-2.5 rounded-xl border border-white/5 font-sans">
+                {shareMessages.linkedin}
+              </p>
+            </div>
+            <button
+              onClick={() => handleCopyShare('linkedin')}
+              className="w-full py-2.5 px-3 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 text-xs font-semibold flex items-center justify-center gap-2 transition border border-indigo-500/30 cursor-pointer"
+            >
+              {copiedPlatform === 'linkedin' ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span className="text-emerald-300">Copié !</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4" />
+                  <span>Copier pour LinkedIn</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -188,7 +188,9 @@ export function AuthGate() {
 
         {/* Informative Footer with Interactive Legal Modals & Copy Links */}
         <div className="text-center text-xs text-white/50 space-y-2">
-          <p>© Empreintes Technologies 2026 • NOVASTREAM Cinema</p>
+          <p className="cursor-pointer hover:text-white transition" onClick={() => setModalType('privacy')} title="Cliquez pour consulter la politique de confidentialité">
+            © Empreintes Technologies 2026 • NOVASTREAM Cinema • Tous droits réservés
+          </p>
           <div className="flex flex-wrap items-center justify-center gap-3 text-[11px]">
             <button
               onClick={() => setModalType('privacy')}
