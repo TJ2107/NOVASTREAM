@@ -70,9 +70,9 @@ export function WatchPartyModal({ isOpen, onClose }: Props) {
   
   // Profile customization state
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [editName, setEditName] = useState(currentUser.name);
-  const [editAvatar, setEditAvatar] = useState(currentUser.avatar);
-  const [editStatus, setEditStatus] = useState(currentUser.statusText || '');
+  const [editName, setEditName] = useState(currentUser?.name || 'Invité');
+  const [editAvatar, setEditAvatar] = useState(currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80');
+  const [editStatus, setEditStatus] = useState(currentUser?.statusText || '');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 

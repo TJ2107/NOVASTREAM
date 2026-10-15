@@ -95,8 +95,8 @@ export const useWatchPartyStore = create<WatchPartyState>((set, get) => ({
       useDuoStore.getState().setMode('off');
     } catch (e) {}
 
-    const role = isHostOverride || get().isHost ? 'host' : 'guest';
-    const user = { ...get().currentUser, name: guestName || get().currentUser.name, role };
+    const role: 'host' | 'guest' = isHostOverride || get().isHost ? 'host' : 'guest';
+    const user: WatchPartyParticipant = { ...get().currentUser, name: guestName || get().currentUser.name, role };
     set({ roomId, currentUser: user, isHost: role === 'host' });
     
     // Add Participant to Firestore with correct role

@@ -33,3 +33,20 @@ Application web progressive (PWA) responsive et multi-formats pour la lecture de
 - Zustand (persistance `localStorage`)
 - Framer Motion / Motion
 - Lucide React
+
+## ☁️ Déploiement sur Cloudflare Pages
+
+L'application est entièrement préparée pour un déploiement ultra-rapide sur **Cloudflare Pages** :
+
+1. **Fichiers de configuration inclus** :
+   - `wrangler.toml` : Configuration Cloudflare Pages pointant vers le dossier `dist`.
+   - `public/_redirects` : Règles de réécriture SPA (`/* /index.html 200`) pour assurer le routage client.
+
+2. **Commandes de build** :
+   - Commande de build : `npm run build` (ou `bun run build`)
+   - Dossier de sortie : `dist`
+   - Node.js version : `20.x` ou supérieur
+
+3. **Variables d'environnement Firebase** :
+   Dans le tableau de bord Cloudflare Pages (Paramètres du projet > Variables d'environnement), configurez vos variables Firebase (`VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, etc.) si nécessaire.
+

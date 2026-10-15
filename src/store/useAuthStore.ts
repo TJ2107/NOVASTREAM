@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { auth, db } from '../lib/firebase';
+import { auth } from '../lib/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut as fbSignOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { recordUserDailyLogin } from '../services/analyticsService';
 
 interface AuthState {
   user: FirebaseUser | null;
@@ -12,30 +12,24 @@ interface AuthState {
   initAuth: () => void;
 }
 
+let authListenerInitialized = false;
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAdmin: false,
   loading: true,
 
   initAuth: () => {
+    if (authListenerInitialized) return;
+    authListenerInitialized = true;
+
     onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const isAdmin = user.email === 'cyber.kan587@gmail.com' || user.email?.endsWith('@admin.com') || false;
+        const isAdmin = user.email === 'cyber.kan587@gmail.com' || false;
         set({ user, isAdmin, loading: false });
 
-        // Save/update user log in Firestore
-        try {
-          await setDoc(doc(db, 'users', user.uid), {
-            uid: user.uid,
-            name: user.displayName || 'Utilisateur',
-            email: user.email || '',
-            photoURL: user.photoURL || '',
-            lastLogin: serverTimestamp(),
-            role: isAdmin ? 'admin' : 'user'
-          }, { merge: true });
-        } catch (e) {
-          console.error('Error saving user log:', e);
-        }
+        // Save/update user log and daily statistics
+        await recordUserDailyLogin(user, isAdmin);
       } else {
         set({ user: null, isAdmin: false, loading: false });
       }
@@ -45,19 +39,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   signInWithGoogle: async () => {
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       const isAdmin = user.email === 'cyber.kan587@gmail.com' || false;
-      set({ user, isAdmin });
+      set({ user, isAdmin, loading: false });
 
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        name: user.displayName || 'Utilisateur',
-        email: user.email || '',
-        photoURL: user.photoURL || '',
-        lastLogin: serverTimestamp(),
-        role: isAdmin ? 'admin' : 'user'
-      }, { merge: true });
+      await recordUserDailyLogin(user, isAdmin);
     } catch (error) {
       console.error('Google Sign-In error:', error);
       throw error;
@@ -67,7 +57,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     try {
       await fbSignOut(auth);
-      set({ user: null, isAdmin: false });
+      set({ user: null, isAdmin: false, loading: false });
     } catch (error) {
       console.error('Sign-Out error:', error);
     }

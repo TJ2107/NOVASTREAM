@@ -19,13 +19,17 @@ import {
   HelpCircle,
   Globe,
   Apple,
-  Monitor
+  Monitor,
+  User as UserIcon,
+  LogOut
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { VPNBadge } from '../components/common/VPNBadge';
 import { DnsHelpModal } from '../components/common/DnsHelpModal';
 
 export function SettingsPage() {
+  const { user, isAdmin, signOut } = useAuthStore();
   const {
     volume,
     setVolume,
@@ -92,6 +96,56 @@ export function SettingsPage() {
         <div className="p-3.5 rounded-2xl glass-strong border border-emerald-500/40 text-xs text-emerald-200 flex items-center gap-3 shadow-2xl animate-fade-in">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
           <span className="font-medium">{statusMessage}</span>
+        </div>
+      )}
+
+      {/* Account Section: Google Account */}
+      {user && (
+        <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0 bg-indigo-950 border-2 border-indigo-500/40 shadow-lg shadow-indigo-950/50">
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt={user.displayName || 'Avatar'} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white font-bold text-lg bg-gradient-to-br from-indigo-600 to-purple-700">
+                    {user.displayName?.[0] || 'U'}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-white">{user.displayName || 'Utilisateur Google'}</h2>
+                  {isAdmin ? (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] font-mono font-bold">
+                      ADMINISTRATEUR
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-mono font-semibold">
+                      COMPTE ACTIF
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-white/60 font-mono">{user.email}</p>
+                <div className="flex items-center gap-1.5 text-[11px] text-emerald-400">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Connecté avec succès via Google Auth</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                if (window.confirm('Voulez-vous vraiment vous déconnecter de votre compte Google ?')) {
+                  signOut();
+                }
+              }}
+              className="px-4 py-2.5 rounded-xl bg-red-600/15 hover:bg-red-600/25 border border-red-500/30 text-red-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 transition self-start sm:self-center"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Se déconnecter</span>
+            </button>
+          </div>
         </div>
       )}
 

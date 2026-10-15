@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Globe,
   ArrowLeft,
@@ -44,7 +44,8 @@ const PORTAL_LIST: PortalInfo[] = [
 ];
 
 export function PortalBrowser() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const navigate = useNavigate();
   const { addPortalPack, addSource, tvMode, vpnEnabled, vpnServer, toggleVPN } = useAppStore();
 
@@ -92,7 +93,7 @@ export function PortalBrowser() {
     setCurrentDomain(domain);
     setInputUrl(domain);
     setActiveCategory(category);
-    setSearchParams({ domain, category });
+    navigate(`?domain=${encodeURIComponent(domain)}&category=${encodeURIComponent(category)}`, { replace: true });
     setIsLoading(true);
     setTimeout(() => setIsLoading(false), 800);
   };

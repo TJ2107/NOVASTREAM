@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Tv,
   Smartphone,
@@ -27,8 +27,8 @@ import { WatchPartyModal } from '../components/duo/WatchPartyModal';
 import { useAppStore } from '../store/useAppStore';
 
 export function DuoPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const {
     mode,
     setMode,
@@ -61,7 +61,7 @@ export function DuoPage() {
       joinRoom(roomQuery);
       setShowWatchParty(true);
     }
-  }, [searchParams]);
+  }, [location.search]);
 
   // In Simulator mode, auto-pair phone and TV so the simulator experience is immediate & seamless
   useEffect(() => {
@@ -336,7 +336,9 @@ export function DuoPage() {
       </div>
 
       {/* Watch Party Modal */}
-      <WatchPartyModal isOpen={showWatchParty} onClose={() => setShowWatchParty(false)} />
+      {showWatchParty && (
+        <WatchPartyModal isOpen={showWatchParty} onClose={() => setShowWatchParty(false)} />
+      )}
     </div>
   );
 }

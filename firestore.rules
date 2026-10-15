@@ -20,6 +20,14 @@ service cloud.firestore {
     match /feedback/{feedbackId} {
       allow read, write: if true;
     }
+
+    match /daily_stats/{dateId} {
+      allow read, write: if true;
+
+      match /{document=**} {
+        allow read, write: if true;
+      }
+    }
     
     match /{document=**} {
       allow read, write: if false;
