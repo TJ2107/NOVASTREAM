@@ -17,7 +17,8 @@ import {
   Sparkles,
   Grid2X2,
   ShieldAlert,
-  MessageSquarePlus
+  MessageSquarePlus,
+  Share2
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -25,6 +26,7 @@ import { PWAInstallButton } from '../common/PWAInstallButton';
 import { NovaLogo } from '../common/NovaLogo';
 import { AuthWidget } from '../auth/AuthWidget';
 import { FeedbackModal } from '../feedback/FeedbackModal';
+import { ShareAppModal } from '../common/ShareAppModal';
 
 const navItems = [
   { to: '/', icon: Home, label: 'Accueil' },
@@ -54,6 +56,7 @@ export function Sidebar({
   const { isAdmin } = useAuthStore();
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Controlled or local state
   const isCollapsed = externalCollapsed !== undefined ? externalCollapsed : internalCollapsed;
@@ -183,13 +186,23 @@ export function Sidebar({
             <AuthWidget collapsed={isCollapsed} />
 
             {!isCollapsed && (
-              <button
-                onClick={() => setShowFeedbackModal(true)}
-                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-indigo-600/30 to-purple-600/30 hover:from-indigo-600/50 hover:to-purple-600/50 border border-indigo-500/30 text-white text-xs font-bold flex items-center justify-center gap-2 transition shadow-md"
-              >
-                <MessageSquarePlus className="w-4 h-4 text-cyan-300" />
-                <span>Donner un avis / Critique</span>
-              </button>
+              <div className="space-y-1.5">
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600/30 to-blue-600/30 hover:from-cyan-600/50 hover:to-blue-600/50 border border-cyan-500/30 text-white text-xs font-bold flex items-center justify-center gap-2 transition shadow-md"
+                >
+                  <Share2 className="w-4 h-4 text-cyan-300" />
+                  <span>Partager sur X, FB & LinkedIn</span>
+                </button>
+
+                <button
+                  onClick={() => setShowFeedbackModal(true)}
+                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-indigo-600/30 to-purple-600/30 hover:from-indigo-600/50 hover:to-purple-600/50 border border-indigo-500/30 text-white text-xs font-bold flex items-center justify-center gap-2 transition shadow-md"
+                >
+                  <MessageSquarePlus className="w-4 h-4 text-cyan-300" />
+                  <span>Donner un avis / Critique</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -198,6 +211,11 @@ export function Sidebar({
       <FeedbackModal
         isOpen={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
+      />
+
+      <ShareAppModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
       />
     </>
   );
