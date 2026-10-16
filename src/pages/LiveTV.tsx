@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   ChevronLeft,
@@ -24,8 +24,16 @@ import { EPGGuide } from '../components/tv/EPGGuide';
 const CATEGORIES = ['Toutes', 'Afrique & Congo', 'Actualités', 'Généraliste', 'Sport', 'Cinéma', 'Musique', 'Enfants', 'Documentaire'];
 
 export function LiveTV() {
-  const { id } = useParams();
+  const [id, setId] = useState(window.location.pathname.split('/')[2]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setId(window.location.pathname.split('/')[2]);
+    };
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
+  }, []);
   const { sources, tvMode } = useAppStore();
   const channels = useMemo(() => sources.filter((s) => s.type === 'live'), [sources]);
 

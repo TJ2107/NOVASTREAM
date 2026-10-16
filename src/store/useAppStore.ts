@@ -111,6 +111,19 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     description: 'Sports extrêmes, Formule 1, VTT descente, Surf géant, Breakdance et grands événements sportifs mondiaux en direct 24h/24.'
   },
   {
+    id: 'demo-sport-plus',
+    name: 'Sport Plus',
+    title: 'Sport Plus Direct',
+    url: 'https://live.sportplus.tv/hls/live.m3u8',
+    type: 'live',
+    group: 'Sport',
+    category: 'sport',
+    country: 'INT',
+    language: 'Français / Anglais',
+    logo: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=320&auto=format&fit=crop&q=80',
+    description: 'Actualités sportives, résultats en direct et événements sportifs mondiaux.'
+  },
+  {
     id: 'demo-bellator-mma',
     name: 'Bellator MMA & Combat',
     title: 'Bellator MMA / Combat TV',

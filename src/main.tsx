@@ -29,10 +29,8 @@ if ('serviceWorker' in navigator && process.env.NODE_ENV !== 'development') {
 const rootElement = document.getElementById('root');
 if (rootElement) {
   createRoot(rootElement).render(
-    <React.StrictMode>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
   );
 }
