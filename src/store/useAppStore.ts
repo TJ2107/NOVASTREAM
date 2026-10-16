@@ -399,6 +399,8 @@ interface AppState {
   // UI State
   isInterfaceVisible: boolean;
   setIsInterfaceVisible: (visible: boolean) => void;
+  hasSeenTour: boolean;
+  setHasSeenTour: (seen: boolean) => void;
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -464,6 +466,8 @@ export const useAppStore = create<AppState>()(
 
       isInterfaceVisible: true,
       setIsInterfaceVisible: (visible: boolean) => set({ isInterfaceVisible: visible }),
+      hasSeenTour: false,
+      setHasSeenTour: (seen: boolean) => set({ hasSeenTour: seen }),
 
       toggleVPN: () => set((s) => ({
         vpnEnabled: !s.vpnEnabled,
@@ -631,7 +635,8 @@ export const useAppStore = create<AppState>()(
         playerEngine: state.playerEngine,
         audioBoost: state.audioBoost,
         audioMode: state.audioMode,
-        audioEqualizer: state.audioEqualizer
+        audioEqualizer: state.audioEqualizer,
+        hasSeenTour: state.hasSeenTour
       }),
       merge: (persistedState: any, currentState: AppState) => {
         if (!persistedState) return currentState;

@@ -11,8 +11,10 @@ export function useWakeLock() {
           wakeLock.addEventListener('release', () => {
             wakeLock = null;
           });
-        } catch (err) {
-          console.debug('Wake Lock request deferred or denied:', err);
+        } catch (err: any) {
+          if (err.name !== 'NotAllowedError') {
+            console.warn('Wake Lock request deferred or denied:', err);
+          }
         }
       }
     };

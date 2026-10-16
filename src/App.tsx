@@ -16,6 +16,7 @@ import { SplashScreen } from './components/common/SplashScreen';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { AuthGate } from './components/auth/AuthGate';
 import { AuthWidget } from './components/auth/AuthWidget';
+import { UserTour } from './components/common/UserTour';
 
 const Home = lazy(() => import('./pages/Home'));
 const LiveTV = lazy(() => import('./pages/LiveTV'));
@@ -76,6 +77,7 @@ export default function App() {
   return (
     <div className={`min-h-screen flex text-white relative ${tvMode ? 'tv-mode' : ''}`}>
       {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+      <UserTour />
 
       {/* Network offline banner */}
       <OfflineIndicator />

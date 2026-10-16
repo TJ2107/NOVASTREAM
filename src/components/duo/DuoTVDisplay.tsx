@@ -156,34 +156,34 @@ export function DuoTVDisplay({ fullScreenPage = false }: Props) {
       }`}
     >
       {/* TV Bezel / Header Bar */}
-      <div className="absolute top-0 left-0 right-0 z-30 p-3.5 bg-gradient-to-b from-black/90 via-black/40 to-transparent flex items-center justify-between pointer-events-none">
-        <div className="flex items-center gap-2.5 pointer-events-auto">
-          <div className="px-2.5 py-1 rounded-full bg-indigo-950/90 border border-indigo-400/40 flex items-center gap-1.5 shadow-md">
-            <Tv className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="text-[11px] font-black tracking-wider text-indigo-200 font-mono">
+      <div className="absolute top-0 left-0 right-0 z-30 p-2 md:p-3 bg-gradient-to-b from-black/90 via-black/40 to-transparent flex items-center justify-between pointer-events-none">
+        <div className="flex items-center gap-1.5 md:gap-2.5 pointer-events-auto">
+          <div className="px-2 py-0.5 md:px-2.5 md:py-1 rounded-full bg-indigo-950/90 border border-indigo-400/40 flex items-center gap-1 shadow-md">
+            <Tv className="w-3 h-3 text-indigo-400" />
+            <span className="text-[9px] md:text-[11px] font-black tracking-wider text-indigo-200 font-mono">
               {tvDeviceName.toUpperCase()}
             </span>
           </div>
 
           {isPaired ? (
-            <div className="px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 flex items-center gap-1 text-[10px] font-mono text-emerald-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>Piloté par : {phoneDeviceName}</span>
+            <div className="px-2 py-0.5 md:px-2.5 md:py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 flex items-center gap-1 text-[9px] md:text-[10px] font-mono text-emerald-300">
+              <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="hidden md:inline">Piloté par :</span> {phoneDeviceName}
             </div>
           ) : (
-            <div className="px-2.5 py-1 rounded-full bg-amber-950/80 border border-amber-500/40 flex items-center gap-1 text-[10px] font-mono text-amber-300">
-              <span>Code Duo : {pairingCode}</span>
+            <div className="px-2 py-0.5 md:px-2.5 md:py-1 rounded-full bg-amber-950/80 border border-amber-500/40 flex items-center gap-1 text-[9px] md:text-[10px] font-mono text-amber-300">
+              <span>Code : {pairingCode}</span>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="flex items-center gap-1.5 pointer-events-auto">
           <button
             onClick={toggleTvFullscreen}
-            className="p-2 rounded-xl glass hover:bg-white/10 text-white/80 hover:text-white transition"
+            className="p-1.5 md:p-2 rounded-lg md:rounded-xl glass hover:bg-white/10 text-white/80 hover:text-white transition"
             title="Plein écran TV"
           >
-            {isTvFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isTvFullscreen ? <Minimize2 className="w-3 h-3 md:w-4 md:h-4" /> : <Maximize2 className="w-3 h-3 md:w-4 md:h-4" />}
           </button>
         </div>
       </div>

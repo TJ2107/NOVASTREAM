@@ -124,36 +124,40 @@ export function Home() {
       {/* Hero Banner */}
       <div className="relative rounded-2xl md:rounded-3xl overflow-hidden glass-strong border border-white/[0.08] shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-r from-red-950/40 via-black/80 to-zinc-950/60 pointer-events-none" />
-        <div className="relative p-5 md:p-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="max-w-2xl space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-950/60 border border-red-500/30 text-[10px] md:text-[11px] font-semibold text-red-200">
-                <Sparkles className="w-3 h-3 md:w-3.5 md:h-3.5 text-[#E50914]" />
-                <span>Hub Multimédia Cosmique & Universel</span>
+        <div className="relative p-4 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="max-w-2xl space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-950/60 border border-red-500/30 text-[9px] md:text-[11px] font-semibold text-red-200">
+                <Sparkles className="w-3 h-3 text-[#E50914]" />
+                <span>Hub Multimédia Cosmique</span>
               </div>
               <VPNBadge />
             </div>
-            <div className="py-1">
-              <NovaLogo size="xl" showText={true} />
+            <div className="py-0.5">
+              <NovaLogo size="lg" showText={true} />
             </div>
-            <p className="text-xs md:text-sm text-[#A1A1A6] leading-relaxed">
-              Expérience cinéma OLED : TV en direct, films VOD, séries et radios haute fidélité sans interruption.
+            <p className="text-[11px] md:text-sm text-[#A1A1A6] leading-relaxed max-w-lg">
+              Expérience cinéma OLED : TV direct, films VOD, séries et radios haute fidélité sans interruption.
             </p>
 
-            <div className="pt-2 flex flex-wrap items-center gap-3">
+            <div className="pt-1 flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="px-5 py-2.5 rounded-xl bg-[#E50914] hover:bg-[#F40612] text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-red-950/50 transition-all tv-focusable active:scale-95"
+                className="px-4 py-2 rounded-xl bg-[#E50914] hover:bg-[#F40612] text-white font-bold text-[11px] flex items-center gap-2 shadow-lg shadow-red-950/50 transition-all tv-focusable active:scale-95"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Ajouter un flux</span>
+                <Plus className="w-3 h-3" />
+                <span>Ajouter flux</span>
               </button>
 
               <button
-                onClick={loadDemoSources}
-                className="px-4 py-2 rounded-xl glass hover:bg-white/10 text-white/90 font-medium text-[10px] md:text-xs flex items-center gap-2 border border-white/10 transition tv-focusable"
+                onClick={() => {
+                  loadDemoSources();
+                  setToastInfo('Sources de démonstration chargées !');
+                  setTimeout(() => setToastInfo(null), 3000);
+                }}
+                className="px-3 py-2 rounded-xl glass hover:bg-white/10 text-white/90 font-medium text-[11px] flex items-center gap-1.5 border border-white/10 transition tv-focusable"
               >
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <Sparkles className="w-3 h-3 text-cyan-400" />
                 <span>Démos</span>
               </button>
             </div>
@@ -161,20 +165,20 @@ export function Home() {
 
           {/* Quick Counter Badges */}
           <div className="grid grid-cols-3 gap-2 w-full md:w-auto flex-shrink-0">
-            <div className="glass p-2.5 rounded-xl text-center border border-purple-500/20">
-              <Tv className="w-3.5 h-3.5 md:w-4 md:h-4 mx-auto mb-1 text-purple-400" />
-              <div className="text-sm md:text-base font-black text-white">{liveChannels.length}</div>
-              <div className="text-[8px] md:text-[9px] text-white/50 uppercase font-medium">Chaînes</div>
+            <div className="glass p-2 rounded-lg text-center border border-purple-500/20">
+              <Tv className="w-3 h-3 mx-auto mb-0.5 text-purple-400" />
+              <div className="text-xs font-black text-white">{liveChannels.length}</div>
+              <div className="text-[8px] text-white/50 uppercase font-medium">Chaînes</div>
             </div>
-            <div className="glass p-2.5 rounded-xl text-center border border-cyan-500/20">
-              <Film className="w-3.5 h-3.5 md:w-4 md:h-4 mx-auto mb-1 text-cyan-400" />
-              <div className="text-sm md:text-base font-black text-white">{movies.length}</div>
-              <div className="text-[8px] md:text-[9px] text-white/50 uppercase font-medium">VOD</div>
+            <div className="glass p-2 rounded-lg text-center border border-cyan-500/20">
+              <Film className="w-3 h-3 mx-auto mb-0.5 text-cyan-400" />
+              <div className="text-xs font-black text-white">{movies.length}</div>
+              <div className="text-[8px] text-white/50 uppercase font-medium">VOD</div>
             </div>
-            <div className="glass p-2.5 rounded-xl text-center border border-indigo-500/20">
-              <Radio className="w-3.5 h-3.5 md:w-4 md:h-4 mx-auto mb-1 text-indigo-400" />
-              <div className="text-sm md:text-base font-black text-white">{radios.length}</div>
-              <div className="text-[8px] md:text-[9px] text-white/50 uppercase font-medium">Radios</div>
+            <div className="glass p-2 rounded-lg text-center border border-indigo-500/20">
+              <Radio className="w-3 h-3 mx-auto mb-0.5 text-indigo-400" />
+              <div className="text-xs font-black text-white">{radios.length}</div>
+              <div className="text-[8px] text-white/50 uppercase font-medium">Radios</div>
             </div>
           </div>
         </div>

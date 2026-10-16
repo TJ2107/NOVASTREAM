@@ -39,7 +39,7 @@ export function SplashScreen({ onComplete }: SplashProps) {
 
       <div className="relative z-10 flex flex-col items-center space-y-8">
         {/* Animated Letter Contour Stream */}
-        <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-1">
           {letters.map((char, idx) => (
             <motion.div
               key={idx}
@@ -51,7 +51,7 @@ export function SplashScreen({ onComplete }: SplashProps) {
                 type: 'spring',
                 stiffness: 120
               }}
-              className="relative text-3xl sm:text-5xl md:text-7xl font-black tracking-wider text-white uppercase font-mono px-1 py-2 group"
+              className="relative text-[28px] sm:text-5xl md:text-7xl font-black tracking-tighter text-white uppercase font-mono px-0.5 py-1 group"
             >
               {/* Character text */}
               <span className="relative z-10 bg-gradient-to-br from-white via-white/90 to-white/50 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(229,9,20,0.6)]">

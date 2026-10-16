@@ -111,17 +111,17 @@ export function VPNPage() {
       </div>
 
       {/* Main One-Tap Power Center */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
         {/* Giant One-Tap Button Card */}
-        <div className="lg:col-span-5 glass-strong rounded-3xl p-8 border border-white/10 flex flex-col items-center justify-between text-center relative overflow-hidden shadow-2xl">
+        <div className="xl:col-span-4 glass-strong rounded-2xl md:rounded-3xl p-6 md:p-8 border border-white/10 flex flex-col items-center justify-between text-center relative overflow-hidden shadow-2xl">
           <div className="absolute top-4 right-4 flex items-center gap-2">
-            <span className="text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-white/5 text-white/50 border border-white/5">
+            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-white/5 text-white/50 border border-white/5">
               Kill Switch: {vpnKillSwitch ? 'ON' : 'OFF'}
             </span>
           </div>
 
-          <div className="space-y-1 mb-4">
-            <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest font-mono">
+          <div className="space-y-1 mb-6">
+            <h3 className="text-[10px] font-bold text-white/60 uppercase tracking-widest font-mono">
               État du Bouclier
             </h3>
             <div
@@ -146,29 +146,29 @@ export function VPNPage() {
 
             <button
               onClick={toggleVPN}
-              className={`relative w-32 h-32 rounded-full flex flex-col items-center justify-center transition-all transform active:scale-95 shadow-2xl border-4 ${
+              className={`relative w-28 h-28 md:w-32 md:h-32 rounded-full flex flex-col items-center justify-center transition-all transform active:scale-95 shadow-2xl border-4 ${
                 vpnEnabled
                   ? 'bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 border-emerald-300 text-white shadow-emerald-600/50 hover:scale-105'
                   : 'bg-gradient-to-br from-[#1a1a36] to-[#0d0d24] border-white/10 text-white/40 hover:text-white hover:border-white/30 hover:scale-105 shadow-black/60'
               } ${tvMode ? 'tv-focusable' : ''}`}
               title={vpnEnabled ? 'Désactiver le VPN' : 'Activer le VPN en 1 tap'}
             >
-              <Power className={`w-10 h-10 mb-1 ${vpnEnabled ? 'animate-pulse' : ''}`} />
-              <span className="text-[10px] font-black tracking-wider uppercase">
+              <Power className={`w-8 h-8 md:w-10 md:h-10 mb-1 ${vpnEnabled ? 'animate-pulse' : ''}`} />
+              <span className="text-[9px] md:text-[10px] font-black tracking-wider uppercase">
                 {vpnEnabled ? 'DÉCONNECTER' : 'ACTIVER'}
               </span>
             </button>
           </div>
 
           {/* Real-time stats footer */}
-          <div className="w-full grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-white/10 text-[10px]">
-            <div className="glass p-2 rounded-2xl">
-              <span className="text-[9px] text-white/40 uppercase block mb-0.5">Durée active</span>
-              <span className="font-mono font-bold text-white text-xs">{connectedTime}</span>
+          <div className="w-full grid grid-cols-2 gap-2 mt-6 pt-4 border-t border-white/10 text-[10px]">
+            <div className="glass p-2 rounded-xl">
+              <span className="text-[8px] text-white/40 uppercase block mb-0.5">Durée active</span>
+              <span className="font-mono font-bold text-white text-[11px]">{connectedTime}</span>
             </div>
-            <div className="glass p-2 rounded-2xl">
-              <span className="text-[9px] text-white/40 uppercase block mb-0.5">IP Virtuelle</span>
-              <span className="font-mono font-bold text-cyan-300 text-xs">
+            <div className="glass p-2 rounded-xl">
+              <span className="text-[8px] text-white/40 uppercase block mb-0.5">IP Virtuelle</span>
+              <span className="font-mono font-bold text-cyan-300 text-[11px]">
                 {vpnEnabled ? vpnServer.ip : 'Masquée'}
               </span>
             </div>
@@ -176,22 +176,22 @@ export function VPNPage() {
         </div>
 
         {/* Swiss & Global Servers Selector */}
-        <div className="lg:col-span-7 glass-strong rounded-3xl p-6 md:p-8 border border-white/10 flex flex-col justify-between shadow-2xl space-y-6">
-          <div className="flex items-center justify-between pb-2 border-b border-white/10">
+        <div className="xl:col-span-8 glass-strong rounded-2xl md:rounded-3xl p-6 md:p-8 border border-white/10 flex flex-col justify-between shadow-2xl space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
             <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
                 <Server className="w-4 h-4 text-emerald-400" />
                 <span>Emplacement des Serveurs</span>
               </h3>
-              <p className="text-[10px] text-white/50">Serveurs ultra-rapides sans logs • Priorité Suisse 🇨🇭</p>
+              <p className="text-[10px] text-white/50">Serveurs ultra-rapides • Priorité Suisse 🇨🇭</p>
             </div>
-            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full self-start">
               7 serveurs actifs
             </span>
           </div>
 
           {/* Servers list */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 overflow-y-auto max-h-[320px] pr-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 overflow-y-auto max-h-[320px] pr-1">
             {VPN_SERVERS.map((server) => {
               const isSelected = vpnServer.id === server.id;
               return (
@@ -201,32 +201,31 @@ export function VPNPage() {
                     setVPNServer(server);
                     if (!vpnEnabled) toggleVPN();
                   }}
-                  className={`p-3 rounded-2xl border text-left transition-all flex items-center justify-between ${
+                  className={`p-2.5 rounded-xl border text-left transition-all flex items-center justify-between ${
                     isSelected
                       ? 'bg-emerald-950/60 border-emerald-400 text-white shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-400/50'
                       : 'glass hover:bg-white/10 border-white/5 text-white/80 hover:text-white'
                   } ${tvMode ? 'tv-focusable' : ''}`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xl leading-none flex-shrink-0">{server.flag}</span>
+                    <span className="text-lg leading-none flex-shrink-0">{server.flag}</span>
                     <div className="min-w-0">
                       <div className="font-bold text-[10px] truncate flex items-center gap-1">
                         <span>{server.city}</span>
                         {server.isSwiss && (
                           <span className="text-[8px] px-1 py-0 rounded bg-red-600/30 text-red-200 border border-red-500/30 font-bold">
-                            SUISSE
+                            CH
                           </span>
                         )}
                       </div>
-                      <div className="text-[9px] text-white/40 font-mono mt-0.5">{server.ip}</div>
+                      <div className="text-[9px] text-white/40 font-mono mt-0.5 truncate">{server.ip}</div>
                     </div>
                   </div>
 
                   <div className="text-right flex-shrink-0 pl-2">
                     <span className="text-[9px] font-mono text-emerald-400 block font-bold">
-                      {server.ping} ms
+                      {server.ping}ms
                     </span>
-                    <span className="text-[8px] text-white/40 font-mono">Charge: {server.load}%</span>
                   </div>
                 </button>
               );

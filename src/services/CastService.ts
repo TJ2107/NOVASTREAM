@@ -55,13 +55,18 @@ class CastService {
   private setupGoogleCastLifecycle() {
     if (typeof window === 'undefined') return;
 
+    console.log('[NOVASTREAM Cast] Setup lifecycle...');
+
     // Check if already available
     if (window.cast?.framework) {
+      console.log('[NOVASTREAM Cast] Framework already available');
       this.initGoogleCastContext();
     } else {
+      console.log('[NOVASTREAM Cast] Waiting for __onGCastApiAvailable');
       const existingCallback = window.__onGCastApiAvailable;
       window.__onGCastApiAvailable = (isAvailable: boolean) => {
         if (existingCallback) existingCallback(isAvailable);
+        console.log('[NOVASTREAM Cast] API Available callback:', isAvailable);
         if (isAvailable) {
           this.initGoogleCastContext();
         }
@@ -70,12 +75,23 @@ class CastService {
   }
 
   private initGoogleCastContext() {
-    if (this.isGoogleCastInitialized) return;
+    if (this.isGoogleCastInitialized) {
+      console.log('[NOVASTREAM Cast] Already initialized');
+      return;
+    }
     try {
       const cast = window.cast;
       const chrome = window.chrome;
-      if (!cast?.framework || !chrome?.cast) return;
+      if (!cast?.framework) {
+        console.warn('[NOVASTREAM Cast] No framework found');
+        return;
+      }
+      if (!chrome?.cast) {
+        console.warn('[NOVASTREAM Cast] No chrome.cast found');
+        return;
+      }
 
+      console.log('[NOVASTREAM Cast] Initializing context...');
       const context = cast.framework.CastContext.getInstance();
       context.setOptions({
         receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
@@ -88,11 +104,13 @@ class CastService {
 
       this.isGoogleCastInitialized = true;
       this.isGoogleCastAvailable = true;
+      console.log('[NOVASTREAM Cast] Context initialized successfully.');
 
       // Listen to Cast State
       context.addEventListener(
         cast.framework.CastContextEventType.CAST_STATE_CHANGED,
         (event: any) => {
+          console.log('[NOVASTREAM Cast] State changed:', event.castState);
           this.handleCastStateChange(event.castState);
         }
       );
@@ -101,13 +119,14 @@ class CastService {
       context.addEventListener(
         cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
         (event: any) => {
+          console.log('[NOVASTREAM Cast] Session state changed:', event.sessionState);
           this.handleSessionStateChange(event);
         }
       );
 
       this.notifyListeners();
     } catch (err) {
-      console.warn('[NOVASTREAM Cast] Failed to initialize Google Cast context:', err);
+      console.error('[NOVASTREAM Cast] Failed to initialize Google Cast context:', err);
     }
   }
 
@@ -181,6 +200,12 @@ class CastService {
       const cast = window.cast;
       const chrome = window.chrome;
       const context = cast.framework.CastContext.getInstance();
+
+      // Forcer l'initialisation si elle n'a pas eu lieu
+      if (!this.isGoogleCastInitialized) {
+        console.log('[NOVASTREAM Cast] Forcing context initialization...');
+        this.initGoogleCastContext();
+      }
 
       // Request user session (opens native cast dialog)
       let session: any = null;

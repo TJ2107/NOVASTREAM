@@ -22,7 +22,7 @@ import { type CastMediaOptions } from '../../services/CastService';
 interface CastModalProps {
   isOpen: boolean;
   onClose: () => void;
-  videoElement?: HTMLVideoElement | null;
+  videoElementRef?: React.RefObject<HTMLVideoElement | null>;
   media: {
     url: string;
     title: string;
@@ -36,7 +36,7 @@ interface CastModalProps {
 export function CastModal({
   isOpen,
   onClose,
-  videoElement,
+  videoElementRef,
   media,
   onOpenDuo
 }: CastModalProps) {
@@ -49,7 +49,7 @@ export function CastModal({
     castViaRemotePlayback,
     castViaAirPlay,
     stopCasting
-  } = useCast(videoElement);
+  } = useCast(videoElementRef?.current);
 
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -74,14 +74,11 @@ export function CastModal({
       }
     } catch (err: any) {
       if (err === 'cancel' || err?.message === 'cancel' || err?.toString?.().includes('cancel')) {
-        // User closed or canceled the Chromecast selection popup -> normal behavior, do not show error
         return;
       }
       console.warn('Google cast error:', err);
-      // If Cast API is not loaded or not in Chrome
       if (!capabilities.googleCast) {
-        // Fallback to Remote Playback if video element exists
-        if (videoElement && capabilities.remotePlayback) {
+        if (videoElementRef?.current && capabilities.remotePlayback) {
           await handleRemotePlayback();
           return;
         }
@@ -96,6 +93,7 @@ export function CastModal({
   };
 
   const handleRemotePlayback = async () => {
+    const videoElement = videoElementRef?.current;
     if (!videoElement) {
       setErrorMsg("Le lecteur vidéo n'est pas actif pour le partage direct.");
       return;
@@ -118,6 +116,7 @@ export function CastModal({
   };
 
   const handleAirPlay = () => {
+    const videoElement = videoElementRef?.current;
     if (!videoElement) return;
     setErrorMsg(null);
     try {
@@ -141,9 +140,9 @@ export function CastModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-lg rounded-2xl bg-[#09090b] border border-white/10 p-5 md:p-6 shadow-2xl shadow-red-950/20 text-white space-y-5 overflow-hidden"
+        className="relative w-full max-w-lg rounded-2xl bg-[#09090b] border border-white/10 p-4 md:p-6 shadow-2xl text-white space-y-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Subtle OLED Ambient Red Glow */}

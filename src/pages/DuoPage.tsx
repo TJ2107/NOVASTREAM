@@ -80,103 +80,103 @@ export function DuoPage() {
   return (
     <div className="p-4 md:p-8 pb-32 md:pb-16 max-w-7xl mx-auto space-y-8 select-none">
       {/* Hero Header */}
-      <div className="relative rounded-3xl overflow-hidden glass-strong border border-indigo-500/30 p-6 md:p-10 shadow-2xl">
+      <div className="relative rounded-2xl md:rounded-3xl overflow-hidden glass-strong border border-indigo-500/30 p-5 md:p-10 shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/40 via-[#0b0b24]/60 to-purple-950/30 pointer-events-none" />
 
-        <div className="relative z-10 max-w-4xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-950/80 border border-red-500/40 text-[11px] font-bold text-red-300 font-mono shadow-sm">
+        <div className="relative z-10 max-w-4xl space-y-3 md:space-y-4">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-red-950/80 border border-red-500/40 text-[10px] font-bold text-red-300 font-mono shadow-sm">
             <span className="w-2 h-2 rounded-full bg-[#E50914] animate-ping" />
-            <span>NOVASTREAM DUO & WATCH PARTY • CONTINUITÉ MULTI-ÉCRANS & AMIS</span>
+            <span>NOVASTREAM DUO • CONTINUITÉ</span>
           </div>
 
-          <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight flex flex-wrap items-center gap-3">
-            <span>NOVASTREAM DUO & WATCH PARTY</span>
+          <h1 className="text-xl md:text-4xl font-black text-white tracking-tight flex flex-wrap items-center justify-center text-center w-full gap-3">
+            <span>NOVASTREAM DUO</span>
           </h1>
 
-          {/* User's exact prompt quote highlighted */}
-          <blockquote className="p-4 rounded-2xl bg-black/40 border border-indigo-500/30 text-white/95 text-xs md:text-sm leading-relaxed font-semibold italic backdrop-blur-md shadow-inner space-y-2">
-            <p className="font-bold text-cyan-300 not-italic text-sm md:text-base">
+          <blockquote className="p-3 md:p-4 rounded-xl md:rounded-2xl bg-black/40 border border-indigo-500/30 text-white/95 text-[11px] md:text-sm leading-relaxed font-semibold italic backdrop-blur-md shadow-inner space-y-1.5 md:space-y-2">
+            <p className="font-bold text-cyan-300 not-italic text-xs md:text-base">
               « Regardez ensemble. Où que vous soyez. »
             </p>
             <p>
-              Des amis, des chats et des watch partys, directement dans l'app. Rien à installer : ton compte te connecte, et ce que tu regardes devient quelque chose que vous partagez, avec les gens que tu invites, sur téléphone, télé et ordinateur.
+              Des amis, des chats et des watch partys, directement dans l'app. Ce que tu regardes devient quelque chose que vous partagez, sur téléphone, télé et ordinateur.
             </p>
           </blockquote>
 
-          <div className="pt-2 flex flex-wrap items-center gap-3">
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3">
             <button
               onClick={() => setShowWatchParty(true)}
-              className="px-4 py-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-extrabold text-[10px] md:text-xs flex items-center gap-2 shadow-xl shadow-indigo-900/50 transition transform active:scale-95"
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-extrabold text-[11px] flex items-center justify-center gap-2 shadow-xl shadow-indigo-900/50 transition transform active:scale-95"
             >
               <Users className="w-3.5 h-3.5 text-amber-300" />
-              <span>Lancer une Watch Party avec des amis 🍿</span>
+              <span>Watch Party avec amis 🍿</span>
             </button>
 
-            <div className="px-3 py-2 rounded-xl bg-black/50 border border-white/10 flex items-center gap-2 text-[10px] font-mono">
-              <span className="text-white/40">Code Duo :</span>
-              <span className="text-cyan-300 font-bold text-xs tracking-wider">{pairingCode}</span>
+            <div className="flex items-center gap-2">
+                <div className="flex-1 px-3 py-2 rounded-xl bg-black/50 border border-white/10 flex items-center justify-center gap-2 text-[10px] font-mono">
+                  <span className="text-white/40">Code :</span>
+                  <span className="text-cyan-300 font-bold text-xs tracking-wider">{pairingCode}</span>
+                </div>
+
+                <button
+                  onClick={handleCopyPairLink}
+                  className="px-3 py-2 rounded-xl glass hover:bg-white/10 text-white text-[10px] font-semibold flex items-center gap-1.5 transition"
+                >
+                  {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-cyan-400" />}
+                </button>
             </div>
-
-            <button
-              onClick={handleCopyPairLink}
-              className="px-3 py-2 rounded-xl glass hover:bg-white/10 text-white text-[10px] font-semibold flex items-center gap-1.5 transition"
-            >
-              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-cyan-400" />}
-              <span>{copiedLink ? 'Lien copié !' : 'Copier lien mobile'}</span>
-            </button>
           </div>
         </div>
       </div>
 
       {/* Tab Controls Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <button
             onClick={() => setActiveTab('split')}
-            className={`px-3 py-2 rounded-xl text-[10px] font-bold transition flex items-center gap-2 ${
+            className={`px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-2 ${
               activeTab === 'split'
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/40 ring-1 ring-indigo-400/50'
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/50 ring-1 ring-indigo-400'
                 : 'glass hover:bg-white/10 text-white/70 hover:text-white'
             }`}
           >
-            <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Simulateur Duo</span>
+            <Layers className="w-4 h-4 text-cyan-400" />
+            <span className="truncate">Simulateur</span>
           </button>
 
           <button
             onClick={() => setActiveTab('phone')}
-            className={`px-3 py-2 rounded-xl text-[10px] font-bold transition flex items-center gap-2 ${
+            className={`px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-2 ${
               activeTab === 'phone'
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/40'
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/50 ring-1 ring-indigo-400'
                 : 'glass hover:bg-white/10 text-white/70 hover:text-white'
             }`}
           >
-            <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Mode Téléphone</span>
+            <Smartphone className="w-4 h-4 text-cyan-400" />
+            <span className="truncate">Téléphone</span>
           </button>
 
           <button
             onClick={() => setActiveTab('tv')}
-            className={`px-3 py-2 rounded-xl text-[10px] font-bold transition flex items-center gap-2 ${
+            className={`px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-2 ${
               activeTab === 'tv'
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/40'
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/50 ring-1 ring-indigo-400'
                 : 'glass hover:bg-white/10 text-white/70 hover:text-white'
             }`}
           >
-            <Tv className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Mode Écran TV</span>
+            <Tv className="w-4 h-4 text-indigo-400" />
+            <span className="truncate">TV</span>
           </button>
 
           <button
             onClick={() => setActiveTab('guide')}
-            className={`px-3 py-2 rounded-xl text-[10px] font-bold transition flex items-center gap-2 ${
+            className={`px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-2 ${
               activeTab === 'guide'
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/40'
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/50 ring-1 ring-indigo-400'
                 : 'glass hover:bg-white/10 text-white/70 hover:text-white'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>Guide</span>
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span className="truncate">Guide</span>
           </button>
         </div>
 
@@ -268,7 +268,7 @@ export function DuoPage() {
       {activeTab === 'guide' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-600/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400 font-black text-lg">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-cyan-600/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400 font-black text-sm md:text-lg">
               1
             </div>
             <h3 className="text-base font-bold text-white">Démarrez sur le téléphone</h3>
@@ -279,7 +279,7 @@ export function DuoPage() {
           </div>
 
           <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-400/40 flex items-center justify-center text-indigo-400 font-black text-lg">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-indigo-600/20 border border-indigo-400/40 flex items-center justify-center text-indigo-400 font-black text-sm md:text-lg">
               2
             </div>
             <h3 className="text-base font-bold text-white">Passez sur la télé en 1 tap</h3>
@@ -290,7 +290,7 @@ export function DuoPage() {
           </div>
 
           <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-purple-600/20 border border-purple-400/40 flex items-center justify-center text-purple-400 font-black text-lg">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-purple-600/20 border border-purple-400/40 flex items-center justify-center text-purple-400 font-black text-sm md:text-lg">
               3
             </div>
             <h3 className="text-base font-bold text-white">Watch Party avec des amis</h3>

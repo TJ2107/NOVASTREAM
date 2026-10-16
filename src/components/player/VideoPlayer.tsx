@@ -949,7 +949,7 @@ export function VideoPlayer({
       <CastModal
         isOpen={isCastModalOpen}
         onClose={() => setIsCastModalOpen(false)}
-        videoElement={videoRef.current}
+        videoElementRef={videoRef}
         media={{
           url: targetStreamUrl,
           title: title || 'Flux NOVASTREAM',

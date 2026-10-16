@@ -91,16 +91,16 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 pb-28 md:pb-12 space-y-8 max-w-5xl mx-auto">
+    <div className="p-3 md:p-8 pb-28 md:pb-12 space-y-6 md:space-y-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3">
-            <SettingsIcon className="w-8 h-8 text-[#FF5A5F]" />
-            <span>Paramètres & Moteur Audio</span>
+          <h1 className="text-xl md:text-3xl font-black text-white flex items-center gap-3">
+            <SettingsIcon className="w-6 h-6 md:w-8 md:h-8 text-[#FF5A5F]" />
+            <span>Paramètres</span>
           </h1>
-          <p className="text-white/60 text-xs md:text-sm mt-1">
-            Configurez votre lecteur multimédia, ajustez les préréglages audio et gérez vos données locales.
+          <p className="text-white/60 text-[11px] md:text-sm mt-1">
+            Configurez votre lecteur et gérez vos données.
           </p>
         </div>
         <VPNBadge compact />
@@ -279,6 +279,7 @@ export function SettingsPage() {
           </div>
         </div>
       </div>
+
 
       {/* Section 2: Player Engine Choice */}
       <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-6">
