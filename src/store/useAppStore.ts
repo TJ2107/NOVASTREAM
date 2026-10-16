@@ -316,10 +316,9 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     id: 'demo-rtnc',
     name: 'RTNC (RDC)',
     title: 'RTNC 1 - Télévision Nationale Congolaise',
-    url: 'https://www.youtube.com/embed?listType=search&list=RTNC%20EN%20DIRECT&autoplay=1',
+    url: 'https://mistserver.evi-tv.com/hls/evi_tv_live/index.m3u8',
     alternativeUrls: [
-      'https://www.youtube.com/embed?listType=search&list=RTNC%20OFFICIEL%20DIRECT&autoplay=1',
-      'https://mistserver.evi-tv.com/hls/evi_tv_live/index.m3u8'
+      'https://www.youtube.com/embed?listType=search&list=RTNC%20OFFICIEL%20DIRECT&autoplay=1'
     ],
     type: 'live',
     group: 'Afrique & Congo',
@@ -333,9 +332,9 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     id: 'demo-telecongo',
     name: 'Télé Congo',
     title: 'Télé Congo (Brazzaville)',
-    url: 'https://www.youtube.com/embed?listType=search&list=TELE%20CONGO%20EN%20DIRECT&autoplay=1',
+    url: 'https://vps122407.serveur-vps.net/hls/drtv.m3u8',
     alternativeUrls: [
-      'https://vps122407.serveur-vps.net/hls/drtv.m3u8'
+      'https://www.youtube.com/embed?listType=search&list=TELE%20CONGO%20EN%20DIRECT&autoplay=1'
     ],
     type: 'live',
     group: 'Afrique & Congo',
@@ -370,6 +369,19 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     language: 'Français / Lingala',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Flag_of_the_Democratic_Republic_of_the_Congo.svg/320px-Flag_of_the_Democratic_Republic_of_the_Congo.svg.png',
     description: 'Chaîne de télévision généraliste congolaise émettant en direct depuis Kinshasa.'
+  },
+  {
+    id: 'demo-bosolo-na-politik',
+    name: 'Bosolo na Politik',
+    title: 'Bosolo na Politik (RDC)',
+    url: 'https://www.youtube.com/embed?listType=search&list=BOSOLO%20NA%20POLITIK%20OFFICIEL&autoplay=1',
+    type: 'live',
+    group: 'Afrique & Congo',
+    category: 'news',
+    country: 'CD',
+    language: 'Lingala',
+    logo: 'https://yt3.googleusercontent.com/ytc/AIdro_k6-e6z1-6z9V9-6z9V9-6z9V9-6z9V9-6z9V9=s160-c-k-c0x00ffffff-no-rj',
+    description: 'Émission politique et actualités en direct de Kinshasa.'
   },
   {
     id: 'demo-franceinfo',
