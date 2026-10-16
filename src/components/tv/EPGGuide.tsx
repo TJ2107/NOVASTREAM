@@ -39,6 +39,7 @@ function generateProgramsForChannel(channel: MediaItem, baseDate: Date): EPGProg
   const isNews = channel.category === 'news' || channel.group?.toLowerCase().includes('actu');
   const isSport = channel.category === 'sport' || channel.group?.toLowerCase().includes('sport');
   const isCinema = channel.category === 'cinema' || channel.group?.toLowerCase().includes('ciné');
+  const isMusic = channel.category === 'music' || channel.group?.toLowerCase().includes('musi');
 
   const programsTemplate = isRtnc
     ? [
@@ -84,6 +85,17 @@ function generateProgramsForChannel(channel: MediaItem, baseDate: Date): EPGProg
         { title: 'Le Grand Live Omnisports', durationMin: 120, category: 'Direct', synopsis: 'Diffusion en haute définition des rencontres du jour.' },
         { title: 'L\'After Sport : Débrief & Conférences', durationMin: 120, category: 'Débrief', synopsis: 'Réactions à chaud, conférences de presse et analyses des scores.' },
         { title: 'Nuit Sportive : Grands Moments', durationMin: 300, category: 'Archives', synopsis: 'Les matchs mythiques et records légendaires en rediffusion intégrale.' }
+      ]
+    : isMusic
+    ? [
+        { title: 'Morning Wake-Up Hits', durationMin: 180, category: 'Clips', synopsis: 'Réveil en musique avec les meilleurs clips pop, rap et électro du moment.' },
+        { title: 'Top 50 & Classements Mondiaux', durationMin: 120, category: 'Classement', synopsis: 'Les morceaux les plus streamés et écoutés sur la planète cette semaine.' },
+        { title: 'Midi Mix : Pop, Soul & R&B', durationMin: 90, category: 'Variétés', synopsis: 'Sélection musicale rythmée pour accompagner la pause déjeuner.' },
+        { title: 'Session Live & Concerts Exclusifs', durationMin: 150, category: 'Live', synopsis: 'Captations de festivals internationaux, live acoustiques et scènes mythiques.' },
+        { title: 'Urban Zone & Hip-Hop Culture', durationMin: 120, category: 'Urbain', synopsis: 'Le meilleur du rap français, trap, rap US et culture streetwear.' },
+        { title: 'La Grande Soirée DJ Sets & Electro', durationMin: 140, category: 'Électro', synopsis: 'Mixes des plus grands DJ mondiaux en direct des clubs et festivals.' },
+        { title: 'Clubbing & Dancefloor Night', durationMin: 120, category: 'Club', synopsis: 'Ambiance festive non-stop jusqu\'au bout de la nuit.' },
+        { title: 'Chill Out & Downtempo Afterhours', durationMin: 280, category: 'Chill', synopsis: 'Sélection relaxante, lo-fi beats et sons ambient pour la nuit.' }
       ]
     : isCinema
     ? [

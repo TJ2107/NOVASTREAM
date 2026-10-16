@@ -78,6 +78,162 @@ export function dedupeSources(sources: MediaItem[]): MediaItem[] {
 
 // 100% Tested & Verified Live & VOD Streams with CORS * and active segments
 export const INITIAL_DEMO_SOURCES: MediaItem[] = [
+  // ==========================================
+  // 🏅 SPORT (Chaînes TV Sportives 100% Gratuites)
+  // ==========================================
+  {
+    id: 'demo-pluto-sports-fr',
+    name: 'Pluto TV Sports FR',
+    title: 'Pluto TV Sports France',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5f1712a76f25cb0007204f14/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
+    type: 'live',
+    group: 'Sport',
+    category: 'sport',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=320&auto=format&fit=crop&q=80',
+    description: 'Le meilleur du sport en continu : matchs, temps forts, magazines, documentaires et compétitions internationales en français.'
+  },
+  {
+    id: 'demo-redbull-live',
+    name: 'Red Bull TV Direct HD',
+    title: 'Red Bull TV Sports & Action',
+    url: 'https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8',
+    alternativeUrls: [
+      'https://rbmn-live.akamaized.net/hls/live/590964/redbulltv-live-11/master.m3u8'
+    ],
+    type: 'live',
+    group: 'Sport',
+    category: 'sport',
+    country: 'INT',
+    language: 'Français / Anglais',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Red_Bull_TV_Logo.svg/320px-Red_Bull_TV_Logo.svg.png',
+    description: 'Sports extrêmes, Formule 1, VTT descente, Surf géant, Breakdance et grands événements sportifs mondiaux en direct 24h/24.'
+  },
+  {
+    id: 'demo-bellator-mma',
+    name: 'Bellator MMA & Combat',
+    title: 'Bellator MMA / Combat TV',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5f1712fb6f25cb0007204f15/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
+    type: 'live',
+    group: 'Sport',
+    category: 'sport',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=320&auto=format&fit=crop&q=80',
+    description: 'Les plus grands combats de MMA, KO spectaculaires, ceintures mondiales et arts martiaux en continu.'
+  },
+  {
+    id: 'demo-motorvision',
+    name: 'Motorvision TV',
+    title: 'Motorvision TV (Auto & Moto)',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5f17163f59e9bf0007a827ce/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
+    type: 'live',
+    group: 'Sport',
+    category: 'sport',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=320&auto=format&fit=crop&q=80',
+    description: 'Passion mécanique : supercars, essais exclusifs sur piste, courses automobiles et motos d\'exception.'
+  },
+  {
+    id: 'demo-pluto-extreme',
+    name: 'Sports Extrêmes',
+    title: 'Pluto TV Sports Extrêmes',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5fa1479d28db4f000729352e/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
+    type: 'live',
+    group: 'Sport',
+    category: 'sport',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=320&auto=format&fit=crop&q=80',
+    description: 'Sensations fortes : skate de rue, snowboard freeride, surf géant, BMX et cascades spectaculaires.'
+  },
+  {
+    id: 'demo-pluto-padel',
+    name: 'Padel TV Direct',
+    title: 'Pluto TV Padel',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/643d4608c105ea00084f7063/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
+    type: 'live',
+    group: 'Sport',
+    category: 'sport',
+    country: 'INT',
+    language: 'Français / Espagnol',
+    logo: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=320&auto=format&fit=crop&q=80',
+    description: 'Matchs de haute intensité, tournois majeurs et coulisses du circuit mondial de Padel.'
+  },
+  {
+    id: 'demo-wpt-poker',
+    name: 'World Poker Tour',
+    title: 'World Poker Tour (WPT)',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5f17134371cbcf0007823f3f/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
+    type: 'live',
+    group: 'Sport',
+    category: 'sport',
+    country: 'INT',
+    language: 'Français',
+    logo: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=320&auto=format&fit=crop&q=80',
+    description: 'Les plus grands tournois de poker de la planète, tables finales mythiques et coups de bluff légendaires.'
+  },
+  {
+    id: 'demo-sportsgrid',
+    name: 'SportsGrid Live',
+    title: 'SportsGrid TV (Direct 24/7)',
+    url: 'https://sportsgrid-klowdtv.amagi.tv/playlist.m3u8',
+    type: 'live',
+    group: 'Sport',
+    category: 'sport',
+    country: 'INT',
+    language: 'Anglais',
+    logo: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=320&auto=format&fit=crop&q=80',
+    description: 'Analyses sportives en temps réel, statistiques en direct, cotes et couverture des championnats 24h/24.'
+  },
+  {
+    id: 'demo-gaming-tv',
+    name: 'Gaming & Esport TV',
+    title: 'Gaming & Esport Live',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5fa149b563be4c0007172084/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
+    type: 'live',
+    group: 'Sport',
+    category: 'sport',
+    country: 'INT',
+    language: 'Français',
+    logo: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=320&auto=format&fit=crop&q=80',
+    description: 'Compétitions esportives, tournois internationaux de jeux vidéo, gameplay et émissions gaming.'
+  },
+
+  // ==========================================
+  // 📰 INFOS & ACTUALITÉS (100% Gratuites & Directes)
+  // ==========================================
+  {
+    id: 'demo-france24-fr',
+    name: 'France 24 Français',
+    title: 'France 24 Français (HD)',
+    url: 'https://static.france24.com/live/F24_FR_HI_HLS/live_web.m3u8',
+    type: 'live',
+    group: 'Actualités',
+    category: 'news',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/France_24_logo.svg/320px-France_24_logo.svg.png',
+    description: 'Chaîne d\'information internationale française en continu 24h/24 : journaux, débats et reportages mondiaux.'
+  },
+  {
+    id: 'demo-euronews-fr',
+    name: 'Euronews Français',
+    title: 'Euronews Français (Direct)',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5f170f0744c80300077c5f87/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
+    alternativeUrls: [
+      'https://cdn-euronews.akamaized.net/live/eds/euronews-fr/25050/index.m3u8'
+    ],
+    type: 'live',
+    group: 'Actualités',
+    category: 'news',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Euronews_2016_logo.svg/320px-Euronews_2016_logo.svg.png',
+    description: 'Toute l\'actualité européenne et mondiale en continu, décryptages politiques et économiques en direct.'
+  },
   {
     id: 'demo-20min',
     name: '20 Minutes TV',
@@ -87,51 +243,61 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     group: 'Actualités',
     category: 'news',
     country: 'FR',
+    language: 'Français',
     logo: 'https://upload.wikimedia.org/wikipedia/fr/thumb/f/f6/20_Minutes_TV_logo.svg/320px-20_Minutes_TV_logo.svg.png',
     description: 'Chaîne d\'information et de divertissement française en continu (Île-de-France et National).'
   },
   {
     id: 'demo-africanews',
-    name: 'Africanews / Euronews FR',
+    name: 'Africanews FR',
     title: 'Africanews Français (Euronews Group)',
     url: 'https://cdn-euronews.akamaized.net/live/eds/africanews-fr/25050/index.m3u8',
     type: 'live',
     group: 'Actualités',
     category: 'news',
     country: 'FR',
+    language: 'Français',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Euronews_2016_logo.svg/320px-Euronews_2016_logo.svg.png',
-    description: 'Actualités internationales et africaines en continu par le groupe Euronews en français.'
+    description: 'Actualités panafricaines et internationales en continu par le groupe Euronews en français.'
   },
   {
-    id: 'demo-sport-equipe',
-    name: 'Red Bull TV / Sports',
-    title: 'Red Bull TV Sports & Live Actions',
-    url: 'https://rbmn-live.akamaized.net/hls/live/590964/redbulltv-live-11/master.m3u8',
-    alternativeUrls: [
-      'https://linear-equipe.akamaized.net/equipe/index.m3u8'
-    ],
+    id: 'demo-dw',
+    name: 'DW News Live',
+    title: 'DW News 24/7 (Deutsche Welle)',
+    url: 'https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8',
     type: 'live',
-    group: 'Sport',
-    category: 'sport',
+    group: 'Actualités',
+    category: 'news',
     country: 'INT',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Red_Bull_TV_Logo.svg/320px-Red_Bull_TV_Logo.svg.png',
-    description: 'Sports extrêmes, compétitions en direct et événements sportifs mondiaux 24h/24.'
+    language: 'Anglais',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Deutsche_Welle_logo.svg/320px-Deutsche_Welle_logo.svg.png',
+    description: 'Diffusion internationale d\'informations en direct 24 heures sur 24 par la chaîne publique allemande.'
   },
   {
-    id: 'demo-africa24',
-    name: 'Africa 24',
-    title: 'Africa 24 Direct (Miroir Actif)',
-    url: 'https://static.france24.com/live/F24_FR_HI_HLS/live_web.m3u8',
-    alternativeUrls: [
-      'https://africa24.vedge.infomaniak.com/livecast/ik:africa24/manifest.m3u8',
-      'https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8'
-    ],
+    id: 'demo-france24-en',
+    name: 'France 24 English',
+    title: 'France 24 English (Live HD)',
+    url: 'https://static.france24.com/live/F24_EN_HI_HLS/live_web.m3u8',
     type: 'live',
     group: 'Actualités',
     category: 'news',
     country: 'FR',
-    logo: 'https://upload.wikimedia.org/wikipedia/fr/thumb/c/c5/Africa_24_logo.png/320px-Africa_24_logo.png',
-    description: 'Première chaîne d\'information continue panafricaine 24h/24.'
+    language: 'Anglais',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/France_24_logo.svg/320px-France_24_logo.svg.png',
+    description: 'International breaking news, live reports and in-depth geopolitical coverage 24/7.'
+  },
+  {
+    id: 'demo-france24-ar',
+    name: 'France 24 Arabe',
+    title: 'France 24 Arabe (فرانس 24)',
+    url: 'https://static.france24.com/live/F24_AR_HI_HLS/live_web.m3u8',
+    type: 'live',
+    group: 'Actualités',
+    category: 'news',
+    country: 'FR',
+    language: 'Arabe',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/France_24_logo.svg/320px-France_24_logo.svg.png',
+    description: 'Chaîne d\'information internationale en direct continu en langue arabe.'
   },
   {
     id: 'demo-rtnc',
@@ -140,8 +306,7 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     url: 'https://www.youtube.com/embed?listType=search&list=RTNC%20EN%20DIRECT&autoplay=1',
     alternativeUrls: [
       'https://www.youtube.com/embed?listType=search&list=RTNC%20OFFICIEL%20DIRECT&autoplay=1',
-      'https://mistserver.evi-tv.com/hls/evi_tv_live/index.m3u8',
-      'https://uvotv-aniview.global.ssl.fastly.net/hls/live/2119692/rtnc1/playlist.m3u8'
+      'https://mistserver.evi-tv.com/hls/evi_tv_live/index.m3u8'
     ],
     type: 'live',
     group: 'Afrique & Congo',
@@ -149,7 +314,7 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     country: 'CD',
     language: 'Français / Lingala',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Logo_de_la_RTNC.svg/320px-Logo_de_la_RTNC.svg.png',
-    description: 'Chaîne publique nationale de la République Démocratique du Congo (RDC) en direct de Kinshasa : journal télévisé 20h, débats nationaux, culture et actualités.'
+    description: 'Chaîne publique nationale de la République Démocratique du Congo (RDC) en direct de Kinshasa : journal télévisé 20h et débats.'
   },
   {
     id: 'demo-telecongo',
@@ -157,9 +322,7 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     title: 'Télé Congo (Brazzaville)',
     url: 'https://www.youtube.com/embed?listType=search&list=TELE%20CONGO%20EN%20DIRECT&autoplay=1',
     alternativeUrls: [
-      'https://www.youtube.com/embed?listType=search&list=TELE%20CONGO%20JT%2020H%20DIRECT&autoplay=1',
-      'https://vps122407.serveur-vps.net/hls/drtv.m3u8',
-      'https://live20.bozztv.com/trn03/gin-telecongo/index.m3u8'
+      'https://vps122407.serveur-vps.net/hls/drtv.m3u8'
     ],
     type: 'live',
     group: 'Afrique & Congo',
@@ -167,7 +330,7 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     country: 'CG',
     language: 'Français / Lingala',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Logo_T%C3%A9l%C3%A9_Congo.png/320px-Logo_T%C3%A9l%C3%A9_Congo.png',
-    description: 'Chaîne publique nationale de la République du Congo (Brazzaville) : journal télévisé 20h, magazines culturels, musique congolaise et émissions d\'actualité.'
+    description: 'Chaîne publique nationale de la République du Congo (Brazzaville) : journal télévisé 20h, magazines et actualités.'
   },
   {
     id: 'demo-drtv',
@@ -180,7 +343,7 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     country: 'CG',
     language: 'Français',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Flag_of_the_Republic_of_the_Congo.svg/320px-Flag_of_the_Republic_of_the_Congo.svg.png',
-    description: 'Première chaîne privée généraliste de la République du Congo en direct de Brazzaville (flux HLS direct).'
+    description: 'Chaîne privée généraliste de la République du Congo en direct de Brazzaville.'
   },
   {
     id: 'demo-evitv',
@@ -193,56 +356,224 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     country: 'CD',
     language: 'Français / Lingala',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Flag_of_the_Democratic_Republic_of_the_Congo.svg/320px-Flag_of_the_Democratic_Republic_of_the_Congo.svg.png',
-    description: 'Chaîne de télévision généraliste congolaise émettant en direct depuis Kinshasa (flux HLS direct).'
+    description: 'Chaîne de télévision généraliste congolaise émettant en direct depuis Kinshasa.'
   },
   {
-    id: 'demo-france24-fr',
-    name: 'France 24 Français',
-    title: 'France 24 Français (En Direct)',
-    url: 'https://static.france24.com/live/F24_FR_HI_HLS/live_web.m3u8',
-    type: 'live',
+    id: 'demo-franceinfo',
+    name: 'France Info Radio',
+    title: 'France Info (Radio France)',
+    url: 'https://direct.franceinfo.fr/live/franceinfo-midfi.mp3',
+    type: 'radio',
     group: 'Actualités',
     category: 'news',
     country: 'FR',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/France_24_logo.svg/320px-France_24_logo.svg.png',
-    description: 'Chaîne d\'information internationale française en direct 24h/24.'
+    language: 'Français',
+    logo: 'https://upload.wikimedia.org/wikipedia/fr/thumb/5/52/France_Info_logo_2016.svg/320px-France_Info_logo_2016.svg.png',
+    description: 'L\'actualité française et internationale en direct radio continu 24h/24.'
   },
   {
-    id: 'demo-dw',
-    name: 'DW News Live',
-    title: 'DW News 24/7 (Deutsche Welle)',
-    url: 'https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8',
-    type: 'live',
+    id: 'demo-rfi',
+    name: 'RFI Monde',
+    title: 'RFI - Radio France Internationale',
+    url: 'https://rfimonde64k.ice.infomaniak.ch/rfimonde-64.mp3',
+    type: 'radio',
     group: 'Actualités',
     category: 'news',
-    country: 'INT',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Deutsche_Welle_logo.svg/320px-Deutsche_Welle_logo.svg.png',
-    description: 'Diffusion internationale d\'informations en direct 24 heures sur 24.'
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/RFI_logo.svg/320px-RFI_logo.svg.png',
+    description: 'Actualités du monde entier, grands reportages et analyses en direct de Paris.'
+  },
+
+  // ==========================================
+  // 🎵 MUSIQUE (Chaînes TV Musicales & Radios)
+  // ==========================================
+  {
+    id: 'demo-clubbing-tv',
+    name: 'Clubbing TV HD',
+    title: 'Clubbing TV Direct HD',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5fa148a07c11f70007e997f7/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
+    type: 'live',
+    group: 'Musique',
+    category: 'music',
+    country: 'FR',
+    language: 'Français / Anglais',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Clubbing_TV_logo_2019.png/320px-Clubbing_TV_logo_2019.png',
+    description: 'Chaîne TV n°1 internationale de musique électronique : DJ sets mondiaux, festivals Ibiza/Tomorrowland et clips électro 24h/24.'
   },
   {
-    id: 'demo-redbull',
-    name: 'Red Bull TV',
-    title: 'Red Bull TV Direct',
-    url: 'https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8',
+    id: 'demo-mtv-musique',
+    name: 'MTV Musique',
+    title: 'MTV Musique Pluto Direct',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5f17173e6f25cb0007204f1e/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
     type: 'live',
-    group: 'Sport',
-    category: 'sport',
-    country: 'INT',
-    logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/f/f5/Red_Bull_TV_logo.svg/320px-Red_Bull_TV_logo.svg.png',
-    description: 'Sports extrêmes, Formule 1, compétitions mondiales et documentaires d\'action en direct.'
+    group: 'Musique',
+    category: 'music',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/MTV_2021_%28logo%29.svg/320px-MTV_2021_%28logo%29.svg.png',
+    description: 'Le meilleur de MTV : clips du moment, artistes pop, rap et urbain internationaux.'
   },
   {
-    id: 'demo-akamai',
-    name: 'Mire Akamai 24/7',
-    title: 'Mire HLS HD (Flux Test Permanent)',
-    url: 'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
+    id: 'demo-mtv-hits',
+    name: 'MTV Hits FR',
+    title: 'MTV Hits Français',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5fa148281313420007871bfa/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
     type: 'live',
-    group: 'Documentaire',
-    category: 'doc',
-    country: 'TEST',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Akamai_Technologies_logo.svg/320px-Akamai_Technologies_logo.svg.png',
-    description: 'Flux de test de diffusion haute définition 24/7 diffusé par Akamai CDN.'
+    group: 'Musique',
+    category: 'music',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=320&auto=format&fit=crop&q=80',
+    description: '100% hits, classements du moment et nouveautés musicales en continu.'
   },
+  {
+    id: 'demo-mtv-classics',
+    name: 'MTV Classics 80-90',
+    title: 'MTV Classics (80s & 90s)',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5fa1487f3bcf440007ab603a/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
+    type: 'live',
+    group: 'Musique',
+    category: 'music',
+    country: 'INT',
+    language: 'Anglais / Français',
+    logo: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=320&auto=format&fit=crop&q=80',
+    description: 'Les plus grands clips cultes, hymnes pop, rock et électro des années 80 et 90.'
+  },
+  {
+    id: 'demo-pluto-hiphop',
+    name: 'Pluto TV Hip-Hop',
+    title: 'Pluto TV Hip-Hop Direct',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5fa148e659e9bf0007a8281e/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
+    type: 'live',
+    group: 'Musique',
+    category: 'music',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=320&auto=format&fit=crop&q=80',
+    description: 'Le meilleur du Rap français, Rap US, Trap et culture urbaine 24h/24.'
+  },
+  {
+    id: 'demo-qwest-tv',
+    name: 'Qwest TV Mix',
+    title: 'Qwest TV Mix (Quincy Jones)',
+    url: 'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5f1718bf44c80300077c5f93/master.m3u8?advertisingId=&appName=web&appVersion=unknown&appStoreUrl=&architecture=&buildVersion=&clientDeviceType=0&deviceDNT=0&deviceId=novastream-web&deviceMake=Chrome&deviceModel=web&deviceType=web&deviceVersion=unknown&includeExtendedEvents=false&sid=novastream-sid&userId=',
+    type: 'live',
+    group: 'Musique',
+    category: 'music',
+    country: 'FR',
+    language: 'Français / Anglais',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Qwest_TV_logo.png/320px-Qwest_TV_logo.png',
+    description: 'Chaîne musicale d\'exception fondée par Quincy Jones : Jazz, Soul, Funk, R&B, Musiques du Monde et concerts en haute fidélité.'
+  },
+  {
+    id: 'demo-funradio',
+    name: 'Fun Radio',
+    title: 'Fun Radio (Le Son Dance & Électro)',
+    url: 'https://icecast.funradio.fr/fun-1-44-128',
+    type: 'radio',
+    group: 'Musique',
+    category: 'music',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://upload.wikimedia.org/wikipedia/fr/thumb/5/51/Logo_Fun_Radio_2020.svg/320px-Logo_Fun_Radio_2020.svg.png',
+    description: 'Le son dance, électro, les meilleurs hits et DJ sets en direct.'
+  },
+  {
+    id: 'demo-rtl2',
+    name: 'RTL2 Direct',
+    title: 'RTL2 (Le Son Pop-Rock)',
+    url: 'https://icecast.rtl2.fr/rtl2-1-44-128',
+    type: 'radio',
+    group: 'Musique',
+    category: 'music',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://upload.wikimedia.org/wikipedia/fr/thumb/2/21/RTL2_logo_2015.svg/320px-RTL2_logo_2015.svg.png',
+    description: 'Le meilleur de la musique Pop-Rock internationale et française en continu.'
+  },
+  {
+    id: 'demo-skyrock',
+    name: 'Skyrock',
+    title: 'Skyrock National Direct',
+    url: 'https://icecast.skyrock.net/s/natio_mp3_128k',
+    type: 'radio',
+    group: 'Musique',
+    category: 'music',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://upload.wikimedia.org/wikipedia/fr/thumb/5/5c/Skyrock_logo_2004.svg/320px-Skyrock_logo_2004.svg.png',
+    description: 'Premier sur le rap, le R&B et la musique urbaine en direct.'
+  },
+  {
+    id: 'demo-jazzradio',
+    name: 'Jazz Radio',
+    title: 'Jazz Radio (Jazz, Soul & Blues)',
+    url: 'https://jazz-wr01.ice.infomaniak.ch/jazz-wr01-128.mp3',
+    type: 'radio',
+    group: 'Musique',
+    category: 'music',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://upload.wikimedia.org/wikipedia/fr/thumb/a/ad/Logo_Jazz_Radio.svg/320px-Logo_Jazz_Radio.svg.png',
+    description: '100% Jazz, Soul, Blues, Funk et gospel en direct 24h/24.'
+  },
+  {
+    id: 'demo-radiomeuh',
+    name: 'Radio Meuh',
+    title: 'Radio Meuh (Groove & Funk Indé)',
+    url: 'https://radiomeuh.ice.infomaniak.ch/radiomeuh-128.mp3',
+    type: 'radio',
+    group: 'Musique',
+    category: 'music',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Radio_Meuh_logo.png/320px-Radio_Meuh_logo.png',
+    description: 'Radio indépendante culte de Haute-Savoie : pépites funk, soul, groove et musiques du monde sans publicité.'
+  },
+  {
+    id: 'demo-chantefrance',
+    name: 'Chante France',
+    title: 'Chante France (100% Chanson Française)',
+    url: 'https://stream.chantefrance.com/chante_france-128.mp3',
+    type: 'radio',
+    group: 'Musique',
+    category: 'music',
+    country: 'FR',
+    language: 'Français',
+    logo: 'https://upload.wikimedia.org/wikipedia/fr/thumb/6/64/Chante_France_logo_2018.png/320px-Chante_France_logo_2018.png',
+    description: 'La plus belle musique française des années 60 à nos jours.'
+  },
+  {
+    id: 'demo-somafm-groove',
+    name: 'SomaFM Groove Salad',
+    title: 'SomaFM Groove Salad (Ambient & Chill)',
+    url: 'https://ice1.somafm.com/groovesalad-128-mp3',
+    type: 'radio',
+    group: 'Musique',
+    category: 'music',
+    country: 'US',
+    language: 'Anglais',
+    logo: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=320&auto=format&fit=crop&q=80',
+    description: 'Downtempo, chill-out et ambient électronique de San Francisco sans publicité commerciale.'
+  },
+  {
+    id: 'demo-somafm-defcon',
+    name: 'SomaFM DEF CON Radio',
+    title: 'SomaFM DEF CON (Cyber Hacker Beats)',
+    url: 'https://ice1.somafm.com/defcon-128-mp3',
+    type: 'radio',
+    group: 'Musique',
+    category: 'music',
+    country: 'US',
+    language: 'Anglais',
+    logo: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=320&auto=format&fit=crop&q=80',
+    description: 'Musique électronique et cyber beats pour passionnés de cybersécurité et technologie.'
+  },
+
+  // ==========================================
+  // 🎬 CINÉMA & VOD (Films Libres & HLS Certifiés)
+  // ==========================================
   {
     id: 'demo-bbb',
     name: 'Big Buck Bunny (4K Open Movie)',
@@ -266,78 +597,6 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     poster: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Tears_of_Steel_poster.jpg/360px-Tears_of_Steel_poster.jpg',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Tears_of_Steel_poster.jpg/360px-Tears_of_Steel_poster.jpg',
     description: 'Court-métrage de science-fiction cyberpunk à Amsterdam (flux HLS certifié).'
-  },
-  {
-    id: 'demo-franceinfo',
-    name: 'France Info Radio',
-    title: 'France Info (Radio France)',
-    url: 'https://direct.franceinfo.fr/live/franceinfo-midfi.mp3',
-    type: 'radio',
-    group: 'Actualités',
-    category: 'news',
-    country: 'FR',
-    logo: 'https://upload.wikimedia.org/wikipedia/fr/thumb/5/52/France_Info_logo_2016.svg/320px-France_Info_logo_2016.svg.png',
-    description: 'L\'actualité française et internationale en continu en direct radio.'
-  },
-  {
-    id: 'demo-skyrock',
-    name: 'Skyrock',
-    title: 'Skyrock National Direct',
-    url: 'https://icecast.skyrock.net/s/natio_mp3_128k',
-    type: 'radio',
-    group: 'Musique',
-    category: 'music',
-    country: 'FR',
-    logo: 'https://upload.wikimedia.org/wikipedia/fr/thumb/5/5c/Skyrock_logo_2004.svg/320px-Skyrock_logo_2004.svg.png',
-    description: 'Premier sur le rap, le R&B et la musique urbaine en direct.'
-  },
-  {
-    id: 'demo-chantefrance',
-    name: 'Chante France',
-    title: 'Chante France (100% Chanson Française)',
-    url: 'https://stream.chantefrance.com/chante_france-128.mp3',
-    type: 'radio',
-    group: 'Musique',
-    category: 'music',
-    country: 'FR',
-    logo: 'https://upload.wikimedia.org/wikipedia/fr/thumb/6/64/Chante_France_logo_2018.png/320px-Chante_France_logo_2018.png',
-    description: 'La plus belle musique française des années 60 à nos jours.'
-  },
-  {
-    id: 'demo-rfi',
-    name: 'RFI Monde',
-    title: 'RFI - Radio France Internationale',
-    url: 'https://rfimonde64k.ice.infomaniak.ch/rfimonde-64.mp3',
-    type: 'radio',
-    group: 'Actualités',
-    category: 'news',
-    country: 'FR',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/RFI_logo.svg/320px-RFI_logo.svg.png',
-    description: 'Actualités du monde entier, en direct de Paris.'
-  },
-  {
-    id: 'demo-franceinter',
-    name: 'France Inter',
-    title: 'France Inter',
-    url: 'https://direct.franceinter.fr/live/franceinter-midfi.mp3',
-    type: 'radio',
-    group: 'Actualités',
-    category: 'news',
-    country: 'FR',
-    logo: 'https://upload.wikimedia.org/wikipedia/fr/thumb/5/52/France_Inter_logo_2016.svg/320px-France_Inter_logo_2016.svg.png',
-    description: 'Actualités, culture, humour et émissions en direct.'
-  },
-  {
-    id: 'demo-france24-en',
-    name: 'France 24 English',
-    title: 'France 24 English (Live)',
-    url: 'https://static.france24.com/live/F24_EN_HI_HLS/live_web.m3u8',
-    type: 'live',
-    group: 'Actualités',
-    category: 'news',
-    country: 'FR',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/France_24_logo.svg/320px-France_24_logo.svg.png',
-    description: 'Chaîne d\'information internationale en direct (anglais).'
   },
   {
     id: 'demo-sintel',
@@ -617,7 +876,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'streambox-storage-v4',
-      version: 9,
+      version: 10,
       storage: createJSONStorage(() => debouncedStorage),
       partialize: (state) => ({
         // Exclude demo sources from localStorage to keep storage ultra-lightweight and fast
