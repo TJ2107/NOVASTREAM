@@ -19,13 +19,17 @@ import {
   Shield,
   ShieldCheck,
   Smartphone,
-  Cast
+  Cast,
+  Lock,
+  Server,
+  Zap
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { SUPPORTED_STREAMING_PORTALS } from '../../services/UrlResolver';
 import { DuoPairingModal } from '../duo/DuoPairingModal';
 import { CastModal } from '../common/CastModal';
 import { useCast } from '../../hooks/useCast';
+import { secureUrl, testHttpsAlternative } from '../../services/secureStream';
 
 interface Props {
   src: string;
@@ -100,29 +104,73 @@ export function VideoPlayer({
     return () => setIsInterfaceVisible(true);
   }, [setIsInterfaceVisible]);
 
-  const streamCandidates = useMemo(() => [src, ...(alternativeUrls || [])], [src, alternativeUrls]);
+  const streamCandidates = useMemo(() => {
+    const list = [src, ...(alternativeUrls || [])].filter(Boolean);
+    const added: string[] = [];
+    for (const url of list) {
+      if (url.includes('.ts')) {
+        const m3u8Variant = url.replace(/\.ts($|\?)/i, '.m3u8$1');
+        if (!list.includes(m3u8Variant)) added.push(m3u8Variant);
+      }
+    }
+    return [...list, ...added];
+  }, [src, alternativeUrls]);
+
   const [activeStreamIndex, setActiveStreamIndex] = useState(0);
+  const [streamSecurityMode, setStreamSecurityMode] = useState<'auto' | 'https-direct' | 'worker-proxy'>('auto');
+  const [isTestingHttps, setIsTestingHttps] = useState(false);
+  const [httpsTestMessage, setHttpsTestMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveStreamIndex(0);
+    setStreamSecurityMode('auto');
+    setHttpsTestMessage(null);
   }, [src]);
 
   const effectiveSrc = streamCandidates[activeStreamIndex] || src;
 
   const isPortalDomain = SUPPORTED_STREAMING_PORTALS.some((p) => effectiveSrc.includes(p));
-  const isDirectHls = effectiveSrc.includes('.m3u8');
-  const isDirectVideo = effectiveSrc.includes('.mp4') || effectiveSrc.includes('.webm') || effectiveSrc.includes('.mkv') || effectiveSrc.includes('.avi');
-  const isDirectAudio = effectiveSrc.includes('.mp3') || effectiveSrc.includes('.aac') || effectiveSrc.includes('.ogg');
-  const isWebPage = isPortalDomain || (!isDirectHls && !isDirectVideo && !isDirectAudio && (effectiveSrc.startsWith('http://') || effectiveSrc.startsWith('https://')));
+  const isEmbedService = effectiveSrc.includes('youtube.com/embed') || effectiveSrc.includes('player.twitch.tv');
+  // Seules les pages portails externes sans flux direct ou les iframes explicites utilisent un <iframe>
+  const isIframe = useIframeFallback || type === 'iframe' || isEmbedService || (isPortalDomain && !effectiveSrc.includes('.m3u8') && !effectiveSrc.includes('.mp4'));
 
-  const isIframe = useIframeFallback || type === 'iframe' || isWebPage || effectiveSrc.includes('youtube.com/embed') || effectiveSrc.includes('player.twitch.tv');
+  // Solution 1 : Tester HTTPS direct | Solution 2 : Proxy HTTPS Worker
+  const targetStreamUrl = useMemo(() => {
+    if (streamSecurityMode === 'https-direct' && effectiveSrc.startsWith('http://')) {
+      return effectiveSrc.replace(/^http:\/\//i, 'https://');
+    }
+    if (streamSecurityMode === 'worker-proxy') {
+      return `/proxy?url=${encodeURIComponent(effectiveSrc)}`;
+    }
+    return secureUrl(effectiveSrc);
+  }, [effectiveSrc, streamSecurityMode]);
 
-  // Ensure all streams route through the server-side dynamic CORS & Anti-403 Proxy
-  const targetStreamUrl = effectiveSrc.startsWith('/api/proxy')
-    ? effectiveSrc
-    : effectiveSrc.startsWith('http')
-    ? `/api/proxy?url=${encodeURIComponent(effectiveSrc)}`
-    : effectiveSrc;
+  const handleTestHttps = async () => {
+    setIsTestingHttps(true);
+    setHttpsTestMessage(null);
+    try {
+      const { supported, url: testedUrl } = await testHttpsAlternative(effectiveSrc);
+      if (supported && testedUrl !== effectiveSrc) {
+        setHttpsTestMessage('✅ Le serveur du fournisseur gère le HTTPS direct !');
+        setStreamSecurityMode('https-direct');
+      } else {
+        setHttpsTestMessage('⚠️ Le fournisseur ne gère pas le HTTPS direct. Routage automatique via le Worker Proxy HTTPS.');
+        setStreamSecurityMode('worker-proxy');
+      }
+    } catch {
+      setHttpsTestMessage('⚠️ Échec du test HTTPS direct. Routage automatique via le Worker Proxy HTTPS.');
+      setStreamSecurityMode('worker-proxy');
+    } finally {
+      setIsTestingHttps(false);
+      setTimeout(() => initializePlayer(), 300);
+    }
+  };
+
+  const handleForceWorkerProxy = () => {
+    setStreamSecurityMode('worker-proxy');
+    setHttpsTestMessage('⚡ Proxy Worker Nova HTTPS actif (réécriture M3U8 et bypass CORS).');
+    setTimeout(() => initializePlayer(), 300);
+  };
 
   const initializePlayer = useCallback(async () => {
     const video = videoRef.current;
@@ -153,9 +201,12 @@ export function VideoPlayer({
         fragLoadingTimeOut: 20000,
         fragLoadingMaxRetry: 6,
         xhrSetup: (xhr, url) => {
-          // If any URL escaped proxy rewriting, ensure it routes through /api/proxy
-          if ((url.startsWith('http://') || url.startsWith('https://')) && !url.includes('/api/proxy')) {
-            xhr.open('GET', `/api/proxy?url=${encodeURIComponent(url)}`, true);
+          if (streamSecurityMode === 'worker-proxy') {
+            if (!url.includes('/proxy') && !url.includes('/api/proxy')) {
+              xhr.open('GET', `/proxy?url=${encodeURIComponent(url)}`, true);
+            }
+          } else if ((url.startsWith('http://') || url.startsWith('https://')) && !url.includes('/proxy') && !url.includes('/api/proxy')) {
+            xhr.open('GET', secureUrl(url), true);
           }
         }
       });
@@ -199,6 +250,13 @@ export function VideoPlayer({
               networkRetryCount++;
               if (networkRetryCount <= 2) {
                 hls.startLoad();
+              } else if (streamSecurityMode !== 'worker-proxy') {
+                // Auto-switch to Worker Proxy to bypass CORS & Mixed Content
+                console.warn('[NOVASTREAM Player] Bascule automatique vers le Proxy Worker...');
+                hls.destroy();
+                hlsRef.current = null;
+                setStreamSecurityMode('worker-proxy');
+                setHttpsTestMessage('⚡ Bascule automatique sur le Proxy Worker HTTPS (anti-CORS & Mixed Content).');
               } else if (activeStreamIndex < streamCandidates.length - 1) {
                 // Auto-switch to next available server
                 hls.destroy();
@@ -211,7 +269,7 @@ export function VideoPlayer({
                   video.play().catch(() => {});
                 } else {
                   setIsBuffering(false);
-                  setErrorMessage('Flux distant momentanément inaccessible. Basculez sur un autre serveur ou activez le VPN.');
+                  setErrorMessage('Flux TV inaccessible après plusieurs tentatives. Le serveur distant bloque le navigateur ou est temporairement hors ligne.');
                   hls.destroy();
                 }
               }
@@ -540,8 +598,18 @@ export function VideoPlayer({
           setIsInterfaceVisible(false);
         }}
         onError={() => {
+          if (streamSecurityMode !== 'worker-proxy') {
+            console.warn('[NOVASTREAM Video] Échec de lecture directe, bascule automatique vers le Proxy Worker...');
+            setStreamSecurityMode('worker-proxy');
+            setHttpsTestMessage('⚡ Échec de lecture directe. Bascule automatique sur le Proxy Worker HTTPS.');
+            return;
+          }
+          if (activeStreamIndex < streamCandidates.length - 1) {
+            setActiveStreamIndex((prev) => prev + 1);
+            return;
+          }
           setIsBuffering(false);
-          setErrorMessage('Erreur du lecteur vidéo : flux inaccessible ou non décodable.');
+          setErrorMessage('Erreur du lecteur vidéo : flux inaccessible ou bloqué par le serveur distant.');
         }}
         onTimeUpdate={(e) => {
           const t = e.currentTarget.currentTime;
@@ -572,9 +640,48 @@ export function VideoPlayer({
         <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30">
           <AlertTriangle className="w-14 h-14 text-amber-400 mb-3" />
           <h3 className="text-xl font-bold text-white mb-2">Impossible de charger ce flux</h3>
-          <p className="text-white/70 text-xs md:text-sm max-w-lg mb-6 leading-relaxed">
-            {errorMessage}
-          </p>
+          {/* Solutions Mixed Content / Flux HTTP */}
+          <div className="w-full max-w-md my-3 p-3 rounded-2xl bg-white/5 border border-white/10 text-left">
+            <div className="text-[11px] font-bold text-white/90 uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span>Solutions Mixed Content (HTTP sur HTTPS)</span>
+              {streamSecurityMode !== 'auto' && (
+                <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono">
+                  {streamSecurityMode === 'https-direct' ? 'HTTPS DIRECT' : 'PROXY WORKER'}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                onClick={handleTestHttps}
+                disabled={isTestingHttps}
+                className="p-2.5 rounded-xl bg-blue-950/60 hover:bg-blue-900/80 border border-blue-500/30 text-white text-left transition flex items-start gap-2.5 active:scale-95"
+              >
+                <Lock className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                <div>
+                  <div className="text-xs font-bold text-blue-200">1. Tester en HTTPS</div>
+                  <div className="text-[10px] text-white/60">Remplace http:// par https:// si le fournisseur le gère (10s)</div>
+                </div>
+              </button>
+
+              <button
+                onClick={handleForceWorkerProxy}
+                className="p-2.5 rounded-xl bg-amber-950/60 hover:bg-amber-900/80 border border-amber-500/30 text-white text-left transition flex items-start gap-2.5 active:scale-95"
+              >
+                <Zap className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                <div>
+                  <div className="text-xs font-bold text-amber-200">2. Proxy Worker (Recommandé)</div>
+                  <div className="text-[10px] text-white/60">Réécrit la playlist M3U8 et contourne le Mixed Content</div>
+                </div>
+              </button>
+            </div>
+
+            {httpsTestMessage && (
+              <div className="mt-2.5 text-[11px] text-amber-300 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20 animate-fadeIn">
+                {httpsTestMessage}
+              </div>
+            )}
+          </div>
 
           <div className="flex gap-3 flex-wrap justify-center max-w-md">
             <button
@@ -681,6 +788,32 @@ export function VideoPlayer({
                 <>
                   <Shield className="w-3 h-3 text-amber-400" />
                   <span>1-TAP VPN</span>
+                </>
+              )}
+            </button>
+
+            {/* Stream Security / Proxy Worker Indicator */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTestHttps();
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold transition border shadow-sm ${
+                streamSecurityMode === 'https-direct'
+                  ? 'bg-blue-950/80 border-blue-400/50 text-blue-300'
+                  : 'bg-amber-950/80 border-amber-500/40 text-amber-300 hover:text-white hover:border-amber-400'
+              }`}
+              title="Sécurité du flux : Cliquez pour tester en HTTPS direct (Solution 1) ou forcer le Proxy Worker HTTPS (Solution 2)"
+            >
+              {streamSecurityMode === 'https-direct' ? (
+                <>
+                  <Lock className="w-3 h-3 text-blue-400" />
+                  <span>HTTPS DIRECT</span>
+                </>
+              ) : (
+                <>
+                  <Zap className="w-3 h-3 text-amber-400" />
+                  <span>PROXY WORKER</span>
                 </>
               )}
             </button>

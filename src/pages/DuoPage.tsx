@@ -128,63 +128,159 @@ export function DuoPage() {
         </div>
       </div>
 
-      {/* Tab Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <button
-            onClick={() => setActiveTab('split')}
-            className={`px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'split'
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/50 ring-1 ring-indigo-400'
-                : 'glass hover:bg-white/10 text-white/70 hover:text-white'
-            }`}
-          >
-            <Layers className="w-4 h-4 text-cyan-400" />
-            <span className="truncate">Simulateur</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('phone')}
-            className={`px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'phone'
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/50 ring-1 ring-indigo-400'
-                : 'glass hover:bg-white/10 text-white/70 hover:text-white'
-            }`}
-          >
-            <Smartphone className="w-4 h-4 text-cyan-400" />
-            <span className="truncate">Téléphone</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('tv')}
-            className={`px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'tv'
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/50 ring-1 ring-indigo-400'
-                : 'glass hover:bg-white/10 text-white/70 hover:text-white'
-            }`}
-          >
-            <Tv className="w-4 h-4 text-indigo-400" />
-            <span className="truncate">TV</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('guide')}
-            className={`px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'guide'
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/50 ring-1 ring-indigo-400'
-                : 'glass hover:bg-white/10 text-white/70 hover:text-white'
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span className="truncate">Guide</span>
-          </button>
+      {/* 4 États Mode Duo - Tab Controls Bar */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-white/60">
+              Modes & Affichages Duo
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-mono self-start sm:self-auto">
+            <span className={`w-2.5 h-2.5 rounded-full ${isPaired ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+            <span className="text-white/70">
+              {isPaired ? 'Liaison Duo synchronisée' : 'En attente de connexion'}
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-mono">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-white/70">
-            {isPaired ? 'Liaison Duo Active' : 'En attente de connexion'}
-          </span>
+        {/* Grille des 4 icônes d'état structurées */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3.5 w-full">
+          {/* État 1 : Simulateur Duo */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('split')}
+            className={`group relative p-3 md:p-3.5 rounded-2xl text-left transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center gap-3 border ${
+              activeTab === 'split'
+                ? 'bg-gradient-to-br from-indigo-900/60 via-purple-900/40 to-black/80 border-indigo-400/80 shadow-lg shadow-indigo-950/60 ring-1 ring-indigo-400/30'
+                : 'glass hover:bg-white/[0.08] border-white/10 hover:border-white/20'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 border ${
+              activeTab === 'split'
+                ? 'bg-cyan-500/25 border-cyan-400/50 text-cyan-300 shadow-md shadow-cyan-950/50'
+                : 'bg-white/5 border-white/10 text-cyan-400 group-hover:text-cyan-300'
+            }`}>
+              <Layers className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-1">
+                <span className={`text-xs md:text-sm font-extrabold truncate block ${
+                  activeTab === 'split' ? 'text-white' : 'text-white/85 group-hover:text-white'
+                }`}>
+                  Simulateur Duo
+                </span>
+                {activeTab === 'split' && (
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping shrink-0" />
+                )}
+              </div>
+              <span className="text-[10px] text-white/50 block truncate">
+                Double écran interactif
+              </span>
+            </div>
+          </button>
+
+          {/* État 2 : Mode Téléphone */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('phone')}
+            className={`group relative p-3 md:p-3.5 rounded-2xl text-left transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center gap-3 border ${
+              activeTab === 'phone'
+                ? 'bg-gradient-to-br from-indigo-900/60 via-purple-900/40 to-black/80 border-indigo-400/80 shadow-lg shadow-indigo-950/60 ring-1 ring-indigo-400/30'
+                : 'glass hover:bg-white/[0.08] border-white/10 hover:border-white/20'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 border ${
+              activeTab === 'phone'
+                ? 'bg-purple-500/25 border-purple-400/50 text-purple-300 shadow-md shadow-purple-950/50'
+                : 'bg-white/5 border-white/10 text-purple-400 group-hover:text-purple-300'
+            }`}>
+              <Smartphone className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-1">
+                <span className={`text-xs md:text-sm font-extrabold truncate block ${
+                  activeTab === 'phone' ? 'text-white' : 'text-white/85 group-hover:text-white'
+                }`}>
+                  Mode Téléphone
+                </span>
+                {activeTab === 'phone' && (
+                  <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping shrink-0" />
+                )}
+              </div>
+              <span className="text-[10px] text-white/50 block truncate">
+                Télécommande pilote
+              </span>
+            </div>
+          </button>
+
+          {/* État 3 : Mode Écran TV */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('tv')}
+            className={`group relative p-3 md:p-3.5 rounded-2xl text-left transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center gap-3 border ${
+              activeTab === 'tv'
+                ? 'bg-gradient-to-br from-indigo-900/60 via-purple-900/40 to-black/80 border-indigo-400/80 shadow-lg shadow-indigo-950/60 ring-1 ring-indigo-400/30'
+                : 'glass hover:bg-white/[0.08] border-white/10 hover:border-white/20'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 border ${
+              activeTab === 'tv'
+                ? 'bg-indigo-500/25 border-indigo-400/50 text-indigo-300 shadow-md shadow-indigo-950/50'
+                : 'bg-white/5 border-white/10 text-indigo-400 group-hover:text-indigo-300'
+            }`}>
+              <Tv className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-1">
+                <span className={`text-xs md:text-sm font-extrabold truncate block ${
+                  activeTab === 'tv' ? 'text-white' : 'text-white/85 group-hover:text-white'
+                }`}>
+                  Mode Écran TV
+                </span>
+                {activeTab === 'tv' && (
+                  <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping shrink-0" />
+                )}
+              </div>
+              <span className="text-[10px] text-white/50 block truncate">
+                Grand écran salon
+              </span>
+            </div>
+          </button>
+
+          {/* État 4 : Guide */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('guide')}
+            className={`group relative p-3 md:p-3.5 rounded-2xl text-left transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center gap-3 border ${
+              activeTab === 'guide'
+                ? 'bg-gradient-to-br from-indigo-900/60 via-purple-900/40 to-black/80 border-indigo-400/80 shadow-lg shadow-indigo-950/60 ring-1 ring-indigo-400/30'
+                : 'glass hover:bg-white/[0.08] border-white/10 hover:border-white/20'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 border ${
+              activeTab === 'guide'
+                ? 'bg-amber-500/25 border-amber-400/50 text-amber-300 shadow-md shadow-amber-950/50'
+                : 'bg-white/5 border-white/10 text-amber-400 group-hover:text-amber-300'
+            }`}>
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-1">
+                <span className={`text-xs md:text-sm font-extrabold truncate block ${
+                  activeTab === 'guide' ? 'text-white' : 'text-white/85 group-hover:text-white'
+                }`}>
+                  Guide & Astuces
+                </span>
+                {activeTab === 'guide' && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
+                )}
+              </div>
+              <span className="text-[10px] text-white/50 block truncate">
+                Tutoriel continuité
+              </span>
+            </div>
+          </button>
         </div>
       </div>
 

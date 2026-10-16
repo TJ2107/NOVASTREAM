@@ -17,6 +17,15 @@
           event.preventDefault();
         }
       });
+
+      // Google Cast early hook
+      window.__castApiAvailable = false;
+      window.__onGCastApiAvailable = function(isAvailable) {
+        window.__castApiAvailable = isAvailable;
+        if (typeof window.__dispatchGCastApiAvailable === 'function') {
+          window.__dispatchGCastApiAvailable(isAvailable);
+        }
+      };
     </script>
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" defer crossorigin="anonymous"></script>
     <title>NOVASTREAM</title>
@@ -41,9 +50,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" crossorigin href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" />
-
-    <!-- Google Cast SDK -->
-    <script async defer src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
   </head>
   <body class="bg-[#000000] text-white selection:bg-[#E50914] selection:text-white antialiased">
     <div id="root"></div>

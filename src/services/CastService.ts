@@ -55,79 +55,107 @@ class CastService {
   private setupGoogleCastLifecycle() {
     if (typeof window === 'undefined') return;
 
-    console.log('[NOVASTREAM Cast] Setup lifecycle...');
+    // Connecter avec le hook précoce d'index.html s'il existe
+    const onAvailable = (isAvailable: boolean) => {
+      console.log('[NOVASTREAM Cast] API Available callback:', isAvailable);
+      if (isAvailable) {
+        this.ensureGoogleCastInitialized(10, 150);
+      }
+    };
 
-    // Check if already available
-    if (window.cast?.framework) {
-      console.log('[NOVASTREAM Cast] Framework already available');
-      this.initGoogleCastContext();
+    (window as any).__dispatchGCastApiAvailable = onAvailable;
+
+    if ((window as any).__castApiAvailable || window.cast?.framework) {
+      this.ensureGoogleCastInitialized(10, 150);
     } else {
-      console.log('[NOVASTREAM Cast] Waiting for __onGCastApiAvailable');
       const existingCallback = window.__onGCastApiAvailable;
       window.__onGCastApiAvailable = (isAvailable: boolean) => {
         if (existingCallback) existingCallback(isAvailable);
-        console.log('[NOVASTREAM Cast] API Available callback:', isAvailable);
-        if (isAvailable) {
-          this.initGoogleCastContext();
-        }
+        onAvailable(isAvailable);
       };
+      // Polling passif au cas où l'événement a été déclenché avant le bundle React
+      this.pollForCastFramework(15, 200);
     }
   }
 
-  private initGoogleCastContext() {
+  private pollForCastFramework(maxAttempts = 15, delayMs = 200) {
+    let count = 0;
+    const interval = setInterval(() => {
+      count++;
+      if (window.cast?.framework?.CastContext && window.chrome?.cast?.media) {
+        clearInterval(interval);
+        this.ensureGoogleCastInitialized(0);
+      } else if (count >= maxAttempts) {
+        clearInterval(interval);
+      }
+    }, delayMs);
+  }
+
+  public async ensureGoogleCastInitialized(maxRetries = 10, delayMs = 150): Promise<boolean> {
     if (this.isGoogleCastInitialized) {
-      console.log('[NOVASTREAM Cast] Already initialized');
-      return;
+      return true;
     }
-    try {
+
+    if (typeof window === 'undefined') return false;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const cast = window.cast;
       const chrome = window.chrome;
-      if (!cast?.framework) {
-        console.warn('[NOVASTREAM Cast] No framework found');
-        return;
-      }
-      if (!chrome?.cast) {
-        console.warn('[NOVASTREAM Cast] No chrome.cast found');
-        return;
-      }
 
-      console.log('[NOVASTREAM Cast] Initializing context...');
-      const context = cast.framework.CastContext.getInstance();
-      context.setOptions({
-        receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
-        autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
-        resumeSavedSession: true
-      });
+      if (cast?.framework?.CastContext && chrome?.cast?.media) {
+        try {
+          console.log('[NOVASTREAM Cast] Configuration des options CastContext...');
+          const context = cast.framework.CastContext.getInstance();
+          context.setOptions({
+            receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+            autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
+            resumeSavedSession: true
+          });
 
-      this.remotePlayer = new cast.framework.RemotePlayer();
-      this.remotePlayerController = new cast.framework.RemotePlayerController(this.remotePlayer);
+          this.remotePlayer = new cast.framework.RemotePlayer();
+          this.remotePlayerController = new cast.framework.RemotePlayerController(this.remotePlayer);
 
-      this.isGoogleCastInitialized = true;
-      this.isGoogleCastAvailable = true;
-      console.log('[NOVASTREAM Cast] Context initialized successfully.');
+          this.isGoogleCastInitialized = true;
+          this.isGoogleCastAvailable = true;
+          console.log('[NOVASTREAM Cast] Google Cast context configuré avec succès.');
 
-      // Listen to Cast State
-      context.addEventListener(
-        cast.framework.CastContextEventType.CAST_STATE_CHANGED,
-        (event: any) => {
-          console.log('[NOVASTREAM Cast] State changed:', event.castState);
-          this.handleCastStateChange(event.castState);
+          // Listen to Cast State
+          context.addEventListener(
+            cast.framework.CastContextEventType.CAST_STATE_CHANGED,
+            (event: any) => {
+              this.handleCastStateChange(event.castState);
+            }
+          );
+
+          // Listen to Session State
+          context.addEventListener(
+            cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+            (event: any) => {
+              this.handleSessionStateChange(event);
+            }
+          );
+
+          this.notifyListeners();
+          return true;
+        } catch (err) {
+          console.error('[NOVASTREAM Cast] Erreur configuration CastContext:', err);
+          return false;
         }
-      );
+      }
 
-      // Listen to Session State
-      context.addEventListener(
-        cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
-        (event: any) => {
-          console.log('[NOVASTREAM Cast] Session state changed:', event.sessionState);
-          this.handleSessionStateChange(event);
-        }
-      );
-
-      this.notifyListeners();
-    } catch (err) {
-      console.error('[NOVASTREAM Cast] Failed to initialize Google Cast context:', err);
+      // Attente si non disponible et qu'il reste des tentatives
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
+
+    // Si après toutes les tentatives le framework n'est pas présent (ex: Safari, Firefox, adblocker)
+    if (!this.isGoogleCastInitialized) {
+      console.log('[NOVASTREAM Cast] Framework Google Cast non disponible sur cet environnement (normal pour Safari/Firefox/iOS).');
+      this.isGoogleCastAvailable = false;
+      this.notifyListeners();
+    }
+    return false;
   }
 
   private handleCastStateChange(castState: any) {
@@ -192,20 +220,17 @@ class CastService {
    * Cast to Google Cast (Chromecast)
    */
   public async castViaGoogleCast(options: CastMediaOptions): Promise<boolean> {
-    if (!window.cast?.framework) {
-      throw new Error("L'API Google Cast n'est pas encore disponible sur ce navigateur.");
+    const isReady = await this.ensureGoogleCastInitialized(12, 150);
+    if (!isReady || !window.cast?.framework) {
+      throw new Error(
+        "Le protocole Google Cast n'est pas disponible ou actif sur ce navigateur. Assurez-vous d'utiliser Chrome/Chromium sur le même réseau Wi-Fi, ou utilisez le mode 'Smart TV & Écran sans fil' ou 'NOVASTREAM Duo'."
+      );
     }
 
     try {
       const cast = window.cast;
       const chrome = window.chrome;
       const context = cast.framework.CastContext.getInstance();
-
-      // Forcer l'initialisation si elle n'a pas eu lieu
-      if (!this.isGoogleCastInitialized) {
-        console.log('[NOVASTREAM Cast] Forcing context initialization...');
-        this.initGoogleCastContext();
-      }
 
       // Request user session (opens native cast dialog)
       let session: any = null;

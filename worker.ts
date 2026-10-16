@@ -30,7 +30,7 @@ export default {
   async fetch(request: Request, env: { ASSETS: { fetch: (req: Request) => Promise<Response> } }): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === '/api/proxy') {
+    if (url.pathname === '/api/proxy' || url.pathname === '/proxy') {
       if (request.method === 'OPTIONS') {
         return new Response(null, {
           status: 204,

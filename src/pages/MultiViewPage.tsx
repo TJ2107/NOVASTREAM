@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAppStore, type MediaItem } from '../store/useAppStore';
 import { VPNBadge } from '../components/common/VPNBadge';
+import { secureUrl } from '../services/secureStream';
 
 type LayoutMode = 'dual' | 'triple' | 'quad';
 
@@ -289,13 +290,7 @@ function MultiViewSlot({
   const [hasError, setHasError] = useState(false);
 
   const channel = slot.channel;
-  const effectiveSrc = channel
-    ? channel.url.startsWith('/api/proxy')
-      ? channel.url
-      : channel.url.startsWith('http://') || channel.url.startsWith('https://')
-      ? `/api/proxy?url=${encodeURIComponent(channel.url)}`
-      : channel.url
-    : '';
+  const effectiveSrc = channel ? secureUrl(channel.url) : '';
 
   useEffect(() => {
     const video = videoRef.current;
@@ -312,8 +307,8 @@ function MultiViewSlot({
         enableWorker: false,
         lowLatencyMode: true,
         xhrSetup: (xhr, url) => {
-          if ((url.startsWith('http://') || url.startsWith('https://')) && !url.includes('/api/proxy')) {
-            xhr.open('GET', `/api/proxy?url=${encodeURIComponent(url)}`, true);
+          if ((url.startsWith('http://') || url.startsWith('https://')) && !url.includes('/proxy') && !url.includes('/api/proxy')) {
+            xhr.open('GET', secureUrl(url), true);
           }
         }
       });
