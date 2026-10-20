@@ -1,5 +1,6 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { Sidebar } from './components/layout/Sidebar';
 import { BottomNav } from './components/layout/BottomNav';
 import { AudioPlayer } from './components/player/AudioPlayer';
@@ -17,6 +18,8 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { AuthGate } from './components/auth/AuthGate';
 import { AuthWidget } from './components/auth/AuthWidget';
 import { UserTour } from './components/common/UserTour';
+import { InterstitialAdModal } from './components/common/InterstitialAdModal';
+import { AdminAnnouncementBanner } from './components/common/AdminAnnouncementBanner';
 
 const Home = lazy(() => import('./pages/Home'));
 const LiveTV = lazy(() => import('./pages/LiveTV'));
@@ -33,10 +36,25 @@ const AdminPage = lazy(() => import('./pages/AdminPage'));
 
 export default function App() {
   const location = useLocation();
-  const { tvMode, isInterfaceVisible } = useAppStore();
+  const { tvMode, isInterfaceVisible, subscriptionPlan, incrementFreeWatchSeconds } = useAppStore();
   const { user, loading, initAuth } = useAuthStore();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+
+  const handleSplashComplete = useCallback(() => {
+    setShowSplash(false);
+  }, []);
+
+  const isPlayingMedia = /^\/(tv|movies|series)\/[^/]+$/.test(location.pathname) || location.pathname === '/multiview';
+
+  // Accumulate watch time for free users when watching media
+  useEffect(() => {
+    if (showSplash || subscriptionPlan !== 'free' || !isPlayingMedia) return;
+    const interval = setInterval(() => {
+      incrementFreeWatchSeconds(1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [showSplash, subscriptionPlan, isPlayingMedia, incrementFreeWatchSeconds]);
 
   // Initialize Firebase Auth listener
   useEffect(() => {
@@ -49,34 +67,36 @@ export default function App() {
   // Prevent screen sleep / standby mode across computers, phones, tablets, and smart TVs
   useWakeLock();
 
-  const isPlayingMedia = /^\/(tv|movies|series)\/[^/]+$/.test(location.pathname) || location.pathname === '/multiview';
-
   // Scroll to top on page navigation
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  // Loading state while verifying Google session
+  // 1. Launch Splash Screen: Always unfolds smoothly on app start
+  if (showSplash) {
+    return <SplashScreen onComplete={handleSplashComplete} />;
+  }
+
+  // 2. Loading state while verifying Google session (if not already finished during splash)
   if (loading) {
     return (
       <div className="min-h-screen bg-[#04040a] flex flex-col items-center justify-center text-white space-y-4">
         <NovaLogo size="lg" showText={true} />
         <div className="flex items-center gap-2.5 px-4 py-2 rounded-full glass border border-white/10 text-xs text-white/70">
           <div className="w-4 h-4 border-2 border-[#E50914] border-t-transparent rounded-full animate-spin" />
-          <span>Vérification de la session Google...</span>
+          <span>Initialisation de NOVASTREAM...</span>
         </div>
       </div>
     );
   }
 
-  // Mandatory Authentication: Non-authenticated users have NO access to the application
+  // 3. Mandatory Authentication: Non-authenticated users redirected to AuthGate
   if (!user) {
     return <AuthGate />;
   }
 
   return (
     <div className={`min-h-screen flex text-white relative ${tvMode ? 'tv-mode' : ''}`}>
-      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
       <UserTour />
 
       {/* Network offline banner */}
@@ -104,6 +124,29 @@ export default function App() {
             </div>
           </header>
         )}
+
+        {/* Free Plan Ad Banner */}
+        {subscriptionPlan === 'free' && !isPlayingMedia && isInterfaceVisible && (
+          <div className="bg-gradient-to-r from-amber-950/90 via-purple-950/90 to-indigo-950/90 border-b border-amber-500/30 px-4 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-white z-10 shadow-lg">
+            <div className="flex items-center gap-2.5">
+              <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold text-[10px] uppercase border border-amber-500/30">Annonce / Sponsor</span>
+              <span className="text-white/80 text-[11px] sm:text-xs">Profitez de toutes les chaînes avec le plan gratuit ou passez à <strong className="text-amber-300">NovaStream Premium Sans Pub (5$/mois)</strong>.</span>
+            </div>
+            <a
+              href="/settings"
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/settings';
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-[11px] transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-md shadow-amber-500/20"
+            >
+              <span>Passer au Sans Pub (5$)</span>
+            </a>
+          </div>
+        )}
+
+        {/* Admin Announcements & Communications Banner */}
+        {!isPlayingMedia && isInterfaceVisible && <AdminAnnouncementBanner />}
 
         <main className="flex-1 min-w-0">
           <ErrorBoundary>
@@ -136,6 +179,9 @@ export default function App() {
 
       {/* Mobile Bottom Navigation - hidden when playing media */}
       {!isPlayingMedia && isInterfaceVisible && <BottomNav />}
+
+      {/* Free Plan Interstitial Ad Modal (1 minute ad every 30 minutes of viewing) */}
+      <InterstitialAdModal />
     </div>
   );
 }

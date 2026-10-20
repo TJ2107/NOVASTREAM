@@ -685,6 +685,17 @@ interface AppState {
   setIsInterfaceVisible: (visible: boolean) => void;
   hasSeenTour: boolean;
   setHasSeenTour: (seen: boolean) => void;
+
+  // Subscription State ($5/mo Premium without ads vs Free with ads)
+  subscriptionPlan: 'free' | 'premium';
+  subscriptionExpiresAt: number | null;
+  setSubscriptionPlan: (plan: 'free' | 'premium', expiresAt?: number | null) => void;
+
+  freeWatchSeconds: number;
+  showInterstitialAd: boolean;
+  incrementFreeWatchSeconds: (delta: number) => void;
+  resetFreeWatchSeconds: () => void;
+  setShowInterstitialAd: (show: boolean) => void;
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -752,6 +763,28 @@ export const useAppStore = create<AppState>()(
       setIsInterfaceVisible: (visible: boolean) => set({ isInterfaceVisible: visible }),
       hasSeenTour: false,
       setHasSeenTour: (seen: boolean) => set({ hasSeenTour: seen }),
+
+      subscriptionPlan: 'free',
+      subscriptionExpiresAt: null,
+      setSubscriptionPlan: (plan, expiresAt = null) => set({
+        subscriptionPlan: plan,
+        subscriptionExpiresAt: expiresAt,
+        ...(plan === 'premium' ? { showInterstitialAd: false, freeWatchSeconds: 0 } : {})
+      }),
+
+      freeWatchSeconds: 0,
+      showInterstitialAd: false,
+      incrementFreeWatchSeconds: (delta) => set((s) => {
+        if (s.subscriptionPlan !== 'free') return s;
+        const next = s.freeWatchSeconds + delta;
+        // 30 minutes = 1800 seconds
+        if (next >= 1800 && !s.showInterstitialAd) {
+          return { freeWatchSeconds: 0, showInterstitialAd: true };
+        }
+        return { freeWatchSeconds: next };
+      }),
+      resetFreeWatchSeconds: () => set({ freeWatchSeconds: 0 }),
+      setShowInterstitialAd: (show) => set({ showInterstitialAd: show }),
 
       toggleVPN: () => set((s) => ({
         vpnEnabled: !s.vpnEnabled,
@@ -920,7 +953,9 @@ export const useAppStore = create<AppState>()(
         audioBoost: state.audioBoost,
         audioMode: state.audioMode,
         audioEqualizer: state.audioEqualizer,
-        hasSeenTour: state.hasSeenTour
+        hasSeenTour: state.hasSeenTour,
+        subscriptionPlan: state.subscriptionPlan,
+        subscriptionExpiresAt: state.subscriptionExpiresAt
       }),
       merge: (persistedState: any, currentState: AppState) => {
         if (!persistedState) return currentState;

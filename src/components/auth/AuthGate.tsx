@@ -194,19 +194,19 @@ export function AuthGate() {
           <div className="flex flex-wrap items-center justify-center gap-3 text-[11px]">
             <button
               onClick={() => setModalType('privacy')}
-              className="text-white/60 hover:text-white underline transition flex items-center gap-1"
+              className="text-white/60 hover:text-white underline transition flex items-center gap-1 font-semibold"
             >
-              Politique de Confidentialité
+              PC
             </button>
             <button
               onClick={() => handleCopyLink('privacy')}
-              className="text-cyan-400 hover:text-cyan-300 p-1.5 rounded-lg bg-cyan-950/40 border border-cyan-500/30 transition cursor-pointer"
+              className="text-cyan-400 hover:text-cyan-300 p-1 rounded-lg bg-cyan-950/40 border border-cyan-500/30 transition cursor-pointer"
               title="Copier le lien de la politique de confidentialité"
             >
               {copiedLink === 'privacy' ? (
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <Check className="w-3 h-3 text-emerald-400" />
               ) : (
-                <Copy className="w-3.5 h-3.5" />
+                <Copy className="w-3 h-3" />
               )}
             </button>
 
@@ -214,19 +214,19 @@ export function AuthGate() {
 
             <button
               onClick={() => setModalType('terms')}
-              className="text-white/60 hover:text-white underline transition flex items-center gap-1"
+              className="text-white/60 hover:text-white underline transition flex items-center gap-1 font-semibold"
             >
-              Conditions d'Utilisation
+              CU
             </button>
             <button
               onClick={() => handleCopyLink('terms')}
-              className="text-indigo-400 hover:text-indigo-300 p-1.5 rounded-lg bg-indigo-950/40 border border-indigo-500/30 transition cursor-pointer"
+              className="text-indigo-400 hover:text-indigo-300 p-1 rounded-lg bg-indigo-950/40 border border-indigo-500/30 transition cursor-pointer"
               title="Copier le lien des conditions d'utilisation"
             >
               {copiedLink === 'terms' ? (
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <Check className="w-3 h-3 text-emerald-400" />
               ) : (
-                <Copy className="w-3.5 h-3.5" />
+                <Copy className="w-3 h-3" />
               )}
             </button>
           </div>
@@ -260,33 +260,33 @@ export function AuthGate() {
 
                   <button
                     onClick={() => handleCopyLink('privacy')}
-                    className="p-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 transition border border-cyan-500/30 cursor-pointer"
+                    className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 transition border border-cyan-500/30 cursor-pointer"
                     title="Copier le lien de la politique"
                   >
                     {copiedLink === 'privacy' ? (
-                      <Check className="w-4 h-4 text-emerald-400" />
+                      <Check className="w-3 h-3 text-emerald-400" />
                     ) : (
-                      <Copy className="w-4 h-4" />
+                      <Copy className="w-3 h-3" />
                     )}
                   </button>
                 </div>
 
-                <div className="space-y-4 text-xs text-white/80 leading-relaxed max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="space-y-4 text-xs text-white/80 leading-relaxed max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar text-justify">
                   <p>
                     Chez <strong>Empreintes Technologies</strong>, nous accordons une importance fondamentale à la transparence, à la sécurité et à la protection de la vie privée de nos utilisateurs sur la plateforme <strong>NOVASTREAM</strong>. La présente Politique de Confidentialité détaille la nature des informations collectées, leur utilisation et vos droits.
                   </p>
                   <div>
-                    <h3 className="font-bold text-white text-sm mb-1">1. Collecte des informations et Authentification Google</h3>
+                    <h3 className="font-bold text-white text-sm mb-1 text-left">1. Collecte des informations et Authentification Google</h3>
                     <p>
                       L'accès à NOVASTREAM requiert une authentification officielle via Google Sign-In (Firebase Authentication). Lors de votre connexion, nous recueillons uniquement les informations de base autorisées : votre nom complet, votre adresse email professionnelle ou personnelle ainsi que l'URL de votre photo de profil. Ces données permettent d'établir votre profil utilisateur, de personnaliser votre expérience et d'assurer le suivi statistique des connexions journalières sur le module d'administration sécurisé.
                     </p>
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-sm mb-1">2. Finalité et Traitement des Données</h3>
+                    <h3 className="font-bold text-white text-sm mb-1 text-left">2. Finalité et Traitement des Données</h3>
                     <p>
                       Les informations recueillies sont strictement destinées à :
                     </p>
-                    <ul className="list-disc list-inside space-y-1 text-white/70 mt-1 pl-2">
+                    <ul className="list-disc list-inside space-y-1 text-white/70 mt-1 pl-2 text-left">
                       <li>Sécuriser l'accès aux flux multimédias et salons Live Watch Party.</li>
                       <li>Alimenter les tableaux de bord statistiques (DAU / MAU) de l'administrateur.</li>
                       <li>Gérer vos préférences locales, vos listes personnalisées et votre historique de lecture chiffré.</li>
@@ -297,13 +297,13 @@ export function AuthGate() {
                     </p>
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-sm mb-1">3. Sécurité et Hébergement</h3>
+                    <h3 className="font-bold text-white text-sm mb-1 text-left">3. Sécurité et Hébergement</h3>
                     <p>
                       L'infrastructure technique de NOVASTREAM repose sur Google Cloud et Firebase. Toutes les transmissions de données bénéficient d'un chiffrement de pointe (SSL/TLS en transit et AES-256 au repos). Seul l'administrateur autorisé dispose de privilèges d'accès aux journaux d'activité globale.
                     </p>
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-sm mb-1">4. Vos Droits et Suppression</h3>
+                    <h3 className="font-bold text-white text-sm mb-1 text-left">4. Vos Droits et Suppression</h3>
                     <p>
                       Conformément aux réglementations en vigueur sur la protection des données, vous disposez d'un droit d'accès, de rectification et de suppression de vos données personnelles. Vous pouvez à tout moment vider votre historique ou réinitialiser vos paramètres depuis la page Paramètres, ou révoquer l'accès à l'application directement depuis votre Compte Google.
                     </p>
@@ -325,46 +325,46 @@ export function AuthGate() {
 
                   <button
                     onClick={() => handleCopyLink('terms')}
-                    className="p-2.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 transition border border-indigo-500/30 cursor-pointer"
+                    className="p-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 transition border border-indigo-500/30 cursor-pointer"
                     title="Copier le lien des conditions"
                   >
                     {copiedLink === 'terms' ? (
-                      <Check className="w-4 h-4 text-emerald-400" />
+                      <Check className="w-3 h-3 text-emerald-400" />
                     ) : (
-                      <Copy className="w-4 h-4" />
+                      <Copy className="w-3 h-3" />
                     )}
                   </button>
                 </div>
 
-                <div className="space-y-4 text-xs text-white/80 leading-relaxed max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="space-y-4 text-xs text-white/80 leading-relaxed max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar text-justify">
                   <p>
                     Les présentes Conditions Générales d'Utilisation (CGU) encadrent légalement l'utilisation de la plateforme multimédia interactive <strong>NOVASTREAM</strong>, éditée par <strong>Empreintes Technologies</strong>. Tout accès à l'application implique l'acceptation sans réserve des termes ci-dessous.
                   </p>
                   <div>
-                    <h3 className="font-bold text-white text-sm mb-1">1. Objet et Accès à la Plateforme</h3>
+                    <h3 className="font-bold text-white text-sm mb-1 text-left">1. Objet et Accès à la Plateforme</h3>
                     <p>
                       NOVASTREAM offre un accès unifié à des flux TV en direct, des radios mondiales, un catalogue VOD cinématographique, des salons de discussion Live Watch Party synchronisés ainsi qu'un mode Duo multi-écrans. L'accès est strictement subordonné à l'authentification sécurisée par compte Google.
                     </p>
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-sm mb-1">2. Engagements et Comportement de l'Utilisateur</h3>
+                    <h3 className="font-bold text-white text-sm mb-1 text-left">2. Engagements et Comportement de l'Utilisateur</h3>
                     <p>
                       En utilisant NOVASTREAM et en participant aux salons Live Watch Party, l'utilisateur s'engage à :
                     </p>
-                    <ul className="list-disc list-inside space-y-1 text-white/70 mt-1 pl-2">
+                    <ul className="list-disc list-inside space-y-1 text-white/70 mt-1 pl-2 text-left">
                       <li>Ne pas publier de contenus illicites, diffamatoires, haineux ou portant atteinte aux droits d'autrui.</li>
                       <li>Respecter la stricte confidentialité des autres utilisateurs et l'intégrité des flux de diffusion.</li>
                       <li>Ne pas tenter de contourner les mesures de sécurité ou d'accéder au module d'administration sans habilitation.</li>
                     </ul>
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-sm mb-1">3. Propriété Intellectuelle</h3>
+                    <h3 className="font-bold text-white text-sm mb-1 text-left">3. Propriété Intellectuelle</h3>
                     <p>
                       L'ensemble de l'architecture logicielle, de l'interface utilisateur, des marques, logos et textes composant NOVASTREAM est la propriété exclusive d'Empreintes Technologies. Toute reproduction, modification ou diffusion non autorisée est strictement interdite.
                     </p>
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-sm mb-1">4. Limitation de Responsabilité</h3>
+                    <h3 className="font-bold text-white text-sm mb-1 text-left">4. Limitation de Responsabilité</h3>
                     <p>
                       Empreintes Technologies s'efforce d'assurer la disponibilité continue des services NOVASTREAM mais ne saurait être tenue responsable des interruptions de flux imputables aux fournisseurs tiers, aux réseaux Internet ou à des opérations de maintenance.
                     </p>

@@ -49,13 +49,16 @@ export function SettingsPage() {
     history,
     sources,
     tvMode,
-    setTVMode
+    setTVMode,
+    subscriptionPlan,
+    setSubscriptionPlan
   } = useAppStore();
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [showDnsHelp, setShowDnsHelp] = useState(false);
   const [compatTab, setCompatTab] = useState<'android' | 'tv' | 'ios' | 'desktop'>('android');
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
+  const [showPayModal, setShowPayModal] = useState(false);
 
   const shareMessages = {
     x: "🎬 Découvrez NOVASTREAM, la plateforme ultime de streaming cinéma, TV en direct et Live Watch Party ! Films, séries et flux HD sans interruption. 🚀 Rejoignez-moi dès maintenant : https://novastream.app #Novastream #Streaming #Cinema",
@@ -167,15 +170,208 @@ export function SettingsPage() {
         </div>
       )}
 
-      {/* Section 1: Audio & Volume Management */}
-      <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-6">
-        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-          <div className="w-10 h-10 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center font-bold">
-            <Volume2 className="w-5 h-5" />
+      {/* Subscription & Plans Section ($5/mo Ad-Free vs Free with Ads) */}
+      <div className="glass-strong rounded-3xl p-6 md:p-8 border border-white/10 space-y-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="flex items-center gap-3 border-b border-white/10 pb-3 md:pb-4">
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+            <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Système de Réglage des Sons & Volume</h2>
-            <p className="text-xs text-white/50">Contrôle maître du volume, amplification et préréglages acoustiques.</p>
+            <h2 className="text-sm md:text-lg font-bold text-white">Gestion des Abonnements NOVASTREAM</h2>
+            <p className="text-[10px] md:text-xs text-white/50">Choisissez entre l'abonnement gratuit avec publicité et l'abonnement VIP sans publicité pour 5$ / mois.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Free Plan Card */}
+          <div className={`p-5 rounded-2xl border transition flex flex-col justify-between space-y-4 ${subscriptionPlan === 'free' ? 'bg-white/10 border-emerald-500/40 shadow-xl shadow-emerald-500/5' : 'glass border-white/5'}`}>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-1 rounded-full bg-white/10 text-white text-[10px] font-bold uppercase tracking-wider">Plan Standard</span>
+                {subscriptionPlan === 'free' && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-bold flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Actif
+                  </span>
+                )}
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">Gratuit avec Publicité</h3>
+                <p className="text-xs text-amber-400 font-semibold mt-0.5">0 $ <span className="text-white/40 font-normal">/ permanent</span></p>
+              </div>
+              <ul className="text-xs text-white/70 space-y-2 pt-2">
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>Accès gratuit à toutes les chaînes et films</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>Bannières et encarts publicitaires intégrés</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>Flux HLS.js standard</span>
+                </li>
+              </ul>
+            </div>
+
+            <button
+              onClick={() => {
+                setSubscriptionPlan('free', null);
+                showToast('Vous êtes désormais sur le plan Gratuit avec Pub.');
+              }}
+              className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${subscriptionPlan === 'free' ? 'bg-white/10 text-white/60 cursor-default' : 'bg-white/5 hover:bg-white/10 text-white border border-white/10'}`}
+              disabled={subscriptionPlan === 'free'}
+            >
+              <span>{subscriptionPlan === 'free' ? 'Plan Actuel' : 'Basculer vers le Gratuit'}</span>
+            </button>
+          </div>
+
+          {/* Premium Plan Card ($5/mo) */}
+          <div className={`p-5 rounded-2xl border transition flex flex-col justify-between space-y-4 relative overflow-hidden ${subscriptionPlan === 'premium' ? 'bg-gradient-to-br from-amber-950/40 to-purple-950/40 border-amber-500/60 shadow-xl shadow-amber-500/10' : 'glass border-amber-500/30 bg-amber-950/10'}`}>
+            <div className="absolute -right-6 -top-6 w-24 h-24 bg-amber-500/20 rounded-full blur-xl pointer-events-none" />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" /> VIP Sans Pub
+                </span>
+                {subscriptionPlan === 'premium' && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Actif
+                  </span>
+                )}
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">NovaStream Premium</h3>
+                <p className="text-xs text-amber-400 font-bold mt-0.5">5 $ <span className="text-white/60 font-normal">/ mois</span></p>
+              </div>
+              <ul className="text-xs text-white/80 space-y-2 pt-2">
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                  <span><strong>100% Sans Publicité</strong> ni interruption</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                  <span>Priorité CDN 4K / Ultra HD & Serveurs VIP</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                  <span>Badge VIP exclusif et Support prioritaire 24/7</span>
+                </li>
+              </ul>
+            </div>
+
+            <button
+              onClick={() => {
+                if (subscriptionPlan === 'premium') {
+                  showToast('Votre abonnement Premium 5$/mois est déjà actif !');
+                } else {
+                  setShowPayModal(true);
+                }
+              }}
+              className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg ${subscriptionPlan === 'premium' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 cursor-default' : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black shadow-amber-500/20'}`}
+            >
+              <Zap className="w-4 h-4" />
+              <span>{subscriptionPlan === 'premium' ? 'Abonnement VIP Actif' : 'S\'abonner pour 5$ / mois'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Simulation Modal */}
+      {showPayModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="glass-strong rounded-3xl p-6 md:p-8 max-w-md w-full border border-amber-500/40 space-y-6 shadow-2xl relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" />
+            
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">NovaStream Premium</h3>
+                  <p className="text-xs text-amber-400 font-semibold">5,00 $ US / mois (Sans Pub)</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPayModal(false)}
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-xs text-white/70 leading-relaxed">
+                Vous êtes sur le point de souscrire à l'abonnement <strong>NovaStream Premium Sans Publicité</strong>. Profitez d'une expérience de streaming illimitée, rapide et 100% sans coupure publicitaire.
+              </p>
+
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/60">Abonnement Mensuel</span>
+                  <span className="text-white font-bold">5,00 $</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/60">Publicités</span>
+                  <span className="text-emerald-400 font-bold">Supprimées (0 pub)</span>
+                </div>
+                <div className="border-t border-white/10 pt-2 flex justify-between text-xs font-bold">
+                  <span className="text-white">Total facturé aujourd'hui</span>
+                  <span className="text-amber-400">5,00 $ / mois</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] text-white/60 block font-medium">Mode de paiement sécurisé</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-center text-xs font-bold text-amber-300">
+                    Carte Bancaire
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-center text-xs font-medium text-white/70">
+                    Mobile Money
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-center text-xs font-medium text-white/70">
+                    Google Pay
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={() => setShowPayModal(false)}
+                className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-semibold transition border border-white/10"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+                  setSubscriptionPlan('premium', expiresAt);
+                  setShowPayModal(false);
+                  showToast('🎉 Félicitations ! Votre abonnement Premium 5$/mois sans pub est activé avec succès !');
+                }}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Payer 5,00 $ & Activer</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Section 1: Audio & Volume Management */}
+      <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-6">
+        <div className="flex items-center gap-3 border-b border-white/10 pb-3 md:pb-4">
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center font-bold">
+            <Volume2 className="w-4 h-4 md:w-5 md:h-5" />
+          </div>
+          <div>
+            <h2 className="text-sm md:text-lg font-bold text-white">Système de Réglage des Sons & Volume</h2>
+            <p className="text-[10px] md:text-xs text-white/50">Contrôle maître du volume, amplification et préréglages acoustiques.</p>
           </div>
         </div>
 
@@ -283,13 +479,13 @@ export function SettingsPage() {
 
       {/* Section 2: Player Engine Choice */}
       <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-6">
-        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-          <div className="w-10 h-10 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center font-bold">
-            <Play className="w-5 h-5" />
+        <div className="flex items-center gap-3 border-b border-white/10 pb-3 md:pb-4">
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center font-bold">
+            <Play className="w-4 h-4 md:w-5 md:h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Choix du Lecteur Multimédia (Engine)</h2>
-            <p className="text-xs text-white/50">Sélectionnez le moteur de lecture adapté à vos flux HLS, IPTV ou VOD.</p>
+            <h2 className="text-sm md:text-lg font-bold text-white">Choix du Lecteur Multimédia (Engine)</h2>
+            <p className="text-[10px] md:text-xs text-white/50">Sélectionnez le moteur de lecture adapté à vos flux HLS, IPTV ou VOD.</p>
           </div>
         </div>
 
@@ -384,6 +580,44 @@ export function SettingsPage() {
         <div className="p-4 rounded-2xl bg-black/30 border border-white/5 space-y-4">
           {compatTab === 'android' && (
             <div className="space-y-3 animate-fadeIn">
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 to-cyan-950/40 border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[10px] font-bold border border-emerald-500/40">APK & PWA</span>
+                    <h3 className="font-bold text-xs text-white">Télécharger le Package APK Android</h3>
+                  </div>
+                  <p className="text-[11px] text-white/70">
+                    Téléchargez le fichier de configuration WebAPK / l'assistant d'installation pour installer NOVASTREAM comme application native sur Android et tablettes.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const apkInfo = {
+                      appName: "NOVASTREAM",
+                      packageName: "app.novastream.tv",
+                      version: "2.4.0",
+                      startUrl: window.location.origin,
+                      iconUrl: `${window.location.origin}/NOVOSTREAM.png`,
+                      description: "Plateforme ultime de streaming cinéma, TV et Watch Party."
+                    };
+                    const blob = new Blob([JSON.stringify(apkInfo, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'novastream-android-apk-package.json';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showToast('Package APK Android / WebAPK téléchargé avec succès !');
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs transition flex items-center gap-2 flex-shrink-0 shadow-lg shadow-emerald-500/20 cursor-pointer"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  <span>Télécharger l'APK / Config</span>
+                </button>
+              </div>
+
               <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 mt-0.5 font-bold text-xs">1</div>
                 <div>

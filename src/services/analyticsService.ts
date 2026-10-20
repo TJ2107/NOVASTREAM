@@ -73,6 +73,23 @@ export async function recordUserDailyLogin(
       timestamp: serverTimestamp(),
       loginDate: todayKey
     }, { merge: true });
+
+    // 4. Notify admin of new user if it's their first time login (check by field existence)
+    // We check if this is the first time they are logging in by checking a 'created_at' field
+    const userDocRef = doc(db, 'users', user.uid);
+    const userSnap = await import('firebase/firestore').then(f => f.getDoc(userDocRef));
+    if (!userSnap.exists() || !userSnap.data().createdAt) {
+      await setDoc(doc(db, 'users', user.uid), { createdAt: serverTimestamp() }, { merge: true });
+      await setDoc(doc(collection(db, 'notifications')), {
+        type: 'new_user',
+        userId: user.uid,
+        userName: user.displayName || 'Utilisateur',
+        userEmail: user.email || '',
+        timestamp: serverTimestamp(),
+        read: false
+      });
+    }
+
   } catch (error) {
     console.error('Failed to record user daily login analytics:', error);
   }
