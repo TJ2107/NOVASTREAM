@@ -118,16 +118,6 @@ export default function App() {
           <header className="md:hidden sticky top-0 z-20 h-14 px-3.5 glass-strong border-b border-white/[0.08] flex items-center justify-between backdrop-blur-2xl">
             <NovaLogo size="xs" showText={true} />
             <div className="flex items-center gap-1.5">
-              {isAdmin && (
-                <Link
-                  to="/admin"
-                  className="px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/40 text-[10px] font-mono font-bold flex items-center gap-1 shadow-sm active:scale-95 transition"
-                  title="Module Administrateur"
-                >
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                  <span>ADMIN</span>
-                </Link>
-              )}
               <DuoBadge />
               <CastBadge />
               <VPNBadge compact={true} />
@@ -136,12 +126,12 @@ export default function App() {
           </header>
         )}
 
-        {/* Free Plan Ad Banner */}
+        {/* Free Plan Ad Banner - Compact on mobile for ergonomics */}
         {subscriptionPlan === 'free' && !isPlayingMedia && isInterfaceVisible && (
-          <div className="bg-gradient-to-r from-amber-950/90 via-purple-950/90 to-indigo-950/90 border-b border-amber-500/30 px-4 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-white z-10 shadow-lg">
-            <div className="flex items-center gap-2.5">
-              <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold text-[10px] uppercase border border-amber-500/30">Annonce / Sponsor</span>
-              <span className="text-white/80 text-[11px] sm:text-xs">Profitez de toutes les chaînes avec le plan gratuit ou passez à <strong className="text-amber-300">NovaStream Premium Sans Pub (5$/mois)</strong>.</span>
+          <div className="bg-gradient-to-r from-amber-950/90 via-purple-950/90 to-indigo-950/90 border-b border-amber-500/30 px-3 py-1.5 sm:px-4 sm:py-2 flex flex-row items-center justify-between gap-2 text-[11px] sm:text-xs text-white z-10 shadow-lg">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-[9px] uppercase border border-amber-500/30 flex-shrink-0">Pub</span>
+              <span className="text-white/80 text-[10px] sm:text-xs truncate sm:whitespace-normal">Passez à <strong className="text-amber-300">NovaStream Sans Pub (5$/mois)</strong>.</span>
             </div>
             <a
               href="/settings"
@@ -149,9 +139,9 @@ export default function App() {
                 e.preventDefault();
                 window.location.href = '/settings';
               }}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-[11px] transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-md shadow-amber-500/20"
+              className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-[10px] sm:text-[11px] transition flex items-center gap-1 flex-shrink-0 cursor-pointer shadow-sm shadow-amber-500/20"
             >
-              <span>Passer au Sans Pub (5$)</span>
+              <span>Sans Pub (5$)</span>
             </a>
           </div>
         )}
