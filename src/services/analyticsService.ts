@@ -36,7 +36,8 @@ export function getTodayKey(): string {
 
 export async function recordUserDailyLogin(
   user: { uid: string; displayName?: string | null; email?: string | null; photoURL?: string | null },
-  isAdmin: boolean
+  isAdmin: boolean,
+  subscriptionPlan: 'free' | 'premium' = 'free'
 ) {
   if (!user?.uid) return;
 
@@ -47,12 +48,13 @@ export async function recordUserDailyLogin(
     email: user.email || '',
     photoURL: user.photoURL || '',
     role: isAdmin ? 'admin' : 'user',
+    subscriptionPlan: subscriptionPlan || 'free',
     lastLogin: serverTimestamp(),
     lastLoginDate: todayKey
   };
 
   try {
-    // 1. Update user document with lastLogin, lastLoginDate and history array
+    // 1. Update user document with lastLogin, lastLoginDate, subscription and history array
     await setDoc(doc(db, 'users', user.uid), {
       ...userData,
       loginDates: arrayUnion(todayKey)
@@ -64,12 +66,14 @@ export async function recordUserDailyLogin(
       lastUpdated: serverTimestamp()
     }, { merge: true });
 
-    // 3. Record distinct user login in subcollection
+    // 3. Record distinct user login in subcollection with subscriptionPlan
     await setDoc(doc(db, 'daily_stats', todayKey, 'logins', user.uid), {
       uid: user.uid,
       name: user.displayName || 'Utilisateur',
       email: user.email || '',
       photoURL: user.photoURL || '',
+      role: isAdmin ? 'admin' : 'user',
+      subscriptionPlan: subscriptionPlan || 'free',
       timestamp: serverTimestamp(),
       loginDate: todayKey
     }, { merge: true });
@@ -92,5 +96,30 @@ export async function recordUserDailyLogin(
 
   } catch (error) {
     console.error('Failed to record user daily login analytics:', error);
+  }
+}
+
+/**
+ * Updates user's subscription plan directly in Firestore
+ */
+export async function updateUserSubscription(
+  userId: string,
+  plan: 'free' | 'premium',
+  expiresAt: number | null = null
+) {
+  if (!userId) return;
+  try {
+    const todayKey = getTodayKey();
+    await setDoc(doc(db, 'users', userId), {
+      subscriptionPlan: plan,
+      subscriptionExpiresAt: expiresAt
+    }, { merge: true });
+
+    // Also update today's login subcollection if present
+    await setDoc(doc(db, 'daily_stats', todayKey, 'logins', userId), {
+      subscriptionPlan: plan
+    }, { merge: true });
+  } catch (err) {
+    console.error('Failed to update user subscription in Firestore:', err);
   }
 }

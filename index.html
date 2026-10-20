@@ -4,7 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <script>
-      // Ignorer les erreurs non gérées de connexion WebSocket propres au HMR en environnement de prévisualisation
+      // Ignorer les erreurs et logs WebSocket liés au HMR en prévisualisation
+      const originalConsoleError = console.error;
+      console.error = function(...args) {
+        const str = args.map(arg => String(arg)).join(' ');
+        if (str.includes('WebSocket') || str.includes('websocket')) {
+          return;
+        }
+        originalConsoleError.apply(console, args);
+      };
+
       window.addEventListener('unhandledrejection', function(event) {
         var msg = event && event.reason ? String(event.reason.message || event.reason) : '';
         if (msg.includes('WebSocket') || msg.includes('websocket')) {

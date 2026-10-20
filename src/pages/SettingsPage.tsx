@@ -24,10 +24,13 @@ import {
   LogOut,
   Share2,
   Copy,
-  Check
+  Check,
+  ShieldAlert
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { updateUserSubscription } from '../services/analyticsService';
 import { VPNBadge } from '../components/common/VPNBadge';
 import { DnsHelpModal } from '../components/common/DnsHelpModal';
 
@@ -155,17 +158,30 @@ export function SettingsPage() {
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                if (window.confirm('Voulez-vous vraiment vous déconnecter de votre compte Google ?')) {
-                  signOut();
-                }
-              }}
-              className="px-4 py-2.5 rounded-xl bg-red-600/15 hover:bg-red-600/25 border border-red-500/30 text-red-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 transition self-start sm:self-center"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Se déconnecter</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className="px-3.5 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 text-xs font-bold flex items-center gap-2 transition shadow-sm"
+                  title="Accéder au panneau d'administration"
+                >
+                  <ShieldAlert className="w-4 h-4 text-amber-400" />
+                  <span>Module Admin</span>
+                </Link>
+              )}
+
+              <button
+                onClick={() => {
+                  if (window.confirm('Voulez-vous vraiment vous déconnecter de votre compte Google ?')) {
+                    signOut();
+                  }
+                }}
+                className="px-4 py-2.5 rounded-xl bg-red-600/15 hover:bg-red-600/25 border border-red-500/30 text-red-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 transition"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Se déconnecter</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -219,6 +235,9 @@ export function SettingsPage() {
             <button
               onClick={() => {
                 setSubscriptionPlan('free', null);
+                if (user?.uid) {
+                  updateUserSubscription(user.uid, 'free', null);
+                }
                 showToast('Vous êtes désormais sur le plan Gratuit avec Pub.');
               }}
               className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${subscriptionPlan === 'free' ? 'bg-white/10 text-white/60 cursor-default' : 'bg-white/5 hover:bg-white/10 text-white border border-white/10'}`}
@@ -350,6 +369,9 @@ export function SettingsPage() {
                 onClick={() => {
                   const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
                   setSubscriptionPlan('premium', expiresAt);
+                  if (user?.uid) {
+                    updateUserSubscription(user.uid, 'premium', expiresAt);
+                  }
                   setShowPayModal(false);
                   showToast('🎉 Félicitations ! Votre abonnement Premium 5$/mois sans pub est activé avec succès !');
                 }}

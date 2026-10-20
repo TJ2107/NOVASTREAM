@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Link } from 'react-router-dom';
+import { ShieldAlert } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { Sidebar } from './components/layout/Sidebar';
 import { BottomNav } from './components/layout/BottomNav';
@@ -37,7 +38,7 @@ const AdminPage = lazy(() => import('./pages/AdminPage'));
 export default function App() {
   const location = useLocation();
   const { tvMode, isInterfaceVisible, subscriptionPlan, incrementFreeWatchSeconds } = useAppStore();
-  const { user, loading, initAuth } = useAuthStore();
+  const { user, isAdmin, loading, initAuth } = useAuthStore();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
 
@@ -117,6 +118,16 @@ export default function App() {
           <header className="md:hidden sticky top-0 z-20 h-14 px-3.5 glass-strong border-b border-white/[0.08] flex items-center justify-between backdrop-blur-2xl">
             <NovaLogo size="xs" showText={true} />
             <div className="flex items-center gap-1.5">
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className="px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/40 text-[10px] font-mono font-bold flex items-center gap-1 shadow-sm active:scale-95 transition"
+                  title="Module Administrateur"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                  <span>ADMIN</span>
+                </Link>
+              )}
               <DuoBadge />
               <CastBadge />
               <VPNBadge compact={true} />

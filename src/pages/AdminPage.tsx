@@ -29,7 +29,8 @@ import {
   AlertTriangle,
   Info,
   Check,
-  Eye
+  Eye,
+  Tv
 } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
@@ -52,6 +53,8 @@ interface UserLog {
   email: string;
   photoURL: string;
   role: string;
+  subscriptionPlan?: 'free' | 'premium';
+  subscriptionExpiresAt?: number | null;
   lastLogin: any;
   lastLoginDate?: string;
   loginDates?: string[];
@@ -77,6 +80,7 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [subscriptionFilter, setSubscriptionFilter] = useState<'all' | 'free' | 'premium'>('all');
   const [notifications, setNotifications] = useState<any[]>([]);
 
   // Communication & Announcements State
@@ -293,8 +297,39 @@ export default function AdminPage() {
     );
   });
 
-  // Filtered all users
+  // Subscription counts
+  const premiumCount = useMemo(() => {
+    return usersList.filter((u) => u.subscriptionPlan === 'premium').length;
+  }, [usersList]);
+
+  const freeCount = useMemo(() => {
+    return usersList.length - premiumCount;
+  }, [usersList, premiumCount]);
+
+  // Helper to render subscription badge
+  const renderSubscriptionBadge = (plan?: 'free' | 'premium') => {
+    if (plan === 'premium') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-purple-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold font-mono shadow-sm">
+          <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
+          <span>VIP Sans Pub (5$)</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-950/40 text-cyan-300 border border-cyan-500/30 text-[10px] font-medium font-mono">
+        <Tv className="w-3 h-3 text-cyan-400" />
+        <span>Gratuit (avec Pub)</span>
+      </span>
+    );
+  };
+
+  // Filtered all users with subscription filter
   const filteredAllUsers = usersList.filter((u) => {
+    if (subscriptionFilter !== 'all') {
+      const plan = u.subscriptionPlan || 'free';
+      if (plan !== subscriptionFilter) return false;
+    }
     if (!userSearchQuery.trim()) return true;
     const q = userSearchQuery.toLowerCase();
     return (
@@ -353,7 +388,7 @@ export default function AdminPage() {
         </div>
 
         {/* Top KPIs Summary */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {/* Daily Active Users (DAU) Counter */}
           <div className="px-3 py-2 rounded-xl glass border border-emerald-500/30 bg-emerald-950/15 flex items-center gap-2 shadow-sm">
             <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
@@ -366,7 +401,29 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
-          {/* ... (rest of the KPIs) ... */}
+
+          {/* VIP Premium Subscribers */}
+          <div className="px-3 py-2 rounded-xl glass border border-amber-500/30 bg-amber-950/20 flex items-center gap-2 shadow-sm">
+            <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-4 h-4 text-amber-300" />
+            </div>
+            <div>
+              <span className="text-[9px] text-amber-300/80 block font-bold leading-tight uppercase">VIP 5$/m</span>
+              <span className="text-sm font-black text-amber-300">{premiumCount}</span>
+            </div>
+          </div>
+
+          {/* Free Subscribers */}
+          <div className="px-3 py-2 rounded-xl glass border border-white/10 flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0">
+              <Tv className="w-4 h-4 text-cyan-300" />
+            </div>
+            <div>
+              <span className="text-[9px] text-white/50 block font-bold leading-tight uppercase">Gratuits</span>
+              <span className="text-sm font-black text-white">{freeCount}</span>
+            </div>
+          </div>
+
           {/* Total Registered Users */}
           <div className="px-3 py-2 rounded-xl glass border border-white/10 flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0">
@@ -378,19 +435,8 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Feedback Count */}
-          <div className="px-3 py-2 rounded-xl glass border border-white/10 flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center flex-shrink-0">
-              <MessageSquare className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[9px] text-white/50 block font-bold leading-tight uppercase">Avis</span>
-              <span className="text-sm font-black text-white">{feedbackList.length}</span>
-            </div>
-          </div>
-
           {/* Average Rating */}
-          <div className="px-3 py-2 rounded-xl glass border border-white/10 flex items-center gap-2">
+          <div className="px-3 py-2 rounded-xl glass border border-white/10 flex items-center gap-2 col-span-2 sm:col-span-1">
             <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0">
               <Star className="w-4 h-4 fill-amber-400" />
             </div>
@@ -671,12 +717,13 @@ export default function AdminPage() {
               ) : (
                 <div className="rounded-2xl border border-white/10 overflow-hidden bg-black/20">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse min-w-[540px]">
+                    <table className="w-full text-left border-collapse min-w-[620px]">
                       <thead>
                         <tr className="border-b border-white/10 bg-white/5 text-[11px] font-mono font-bold text-white/60">
                           <th className="p-3.5">Utilisateur</th>
                           <th className="p-3.5">Email</th>
                           <th className="p-3.5">Rôle</th>
+                          <th className="p-3.5">Abonnement</th>
                           <th className="p-3.5">Dernière activité</th>
                           <th className="p-3.5">Statut</th>
                         </tr>
@@ -712,6 +759,9 @@ export default function AdminPage() {
                               >
                                 {u.role ? u.role.toUpperCase() : 'USER'}
                               </span>
+                            </td>
+                            <td className="p-3.5">
+                              {renderSubscriptionBadge(u.subscriptionPlan)}
                             </td>
                             <td className="p-3.5 text-white/60 font-mono">
                               {u.lastLogin?.toDate
@@ -750,20 +800,35 @@ export default function AdminPage() {
       {/* TAB 2: ALL REGISTERED USERS & LOGS */}
       {activeTab === 'users' && (
         <div className="space-y-4 animate-fadeIn">
-          {/* Search bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <input
-                type="text"
-                value={userSearchQuery}
-                onChange={(e) => setUserSearchQuery(e.target.value)}
-                placeholder="Rechercher par nom, email ou UID..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white placeholder-white/40 focus:outline-none focus:border-indigo-400 transition"
-              />
+          {/* Search bar & Subscription filter */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 flex-1 max-w-xl w-full">
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <input
+                  type="text"
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  placeholder="Rechercher par nom, email ou UID..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white placeholder-white/40 focus:outline-none focus:border-indigo-400 transition"
+                />
+              </div>
+
+              <select
+                value={subscriptionFilter}
+                onChange={(e) => setSubscriptionFilter(e.target.value as 'all' | 'free' | 'premium')}
+                className="w-full sm:w-auto px-3.5 py-2.5 rounded-2xl bg-[#0e0e29] border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-400 transition cursor-pointer"
+              >
+                <option value="all">Tous abonnements ({usersList.length})</option>
+                <option value="premium">⭐ VIP Premium ({premiumCount})</option>
+                <option value="free">📺 Gratuit ({freeCount})</option>
+              </select>
             </div>
-            <div className="text-xs text-white/50 font-mono">
-              Total inscrits dans Firestore : <span className="text-white font-bold">{usersList.length}</span>
+
+            <div className="text-xs text-white/50 font-mono flex items-center gap-2">
+              <span>Affichés : <strong className="text-white">{filteredAllUsers.length}</strong></span>
+              <span>/</span>
+              <span>Total : <strong className="text-white">{usersList.length}</strong></span>
             </div>
           </div>
 
@@ -776,12 +841,13 @@ export default function AdminPage() {
           ) : (
             <div className="rounded-3xl glass-strong border border-indigo-500/20 overflow-hidden shadow-2xl">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[620px]">
+                <table className="w-full text-left border-collapse min-w-[700px]">
                   <thead>
                     <tr className="border-b border-white/10 bg-white/5 text-[11px] font-mono font-bold text-white/60">
                       <th className="p-4">Utilisateur</th>
                       <th className="p-4">Email</th>
                       <th className="p-4">Rôle</th>
+                      <th className="p-4">Abonnement</th>
                       <th className="p-4">UID Firestore</th>
                       <th className="p-4">Dernière Connexion</th>
                       <th className="p-4">Statut Jour</th>
@@ -815,6 +881,9 @@ export default function AdminPage() {
                             >
                               {u.role ? u.role.toUpperCase() : 'USER'}
                             </span>
+                          </td>
+                          <td className="p-4">
+                            {renderSubscriptionBadge(u.subscriptionPlan)}
                           </td>
                           <td className="p-4 text-white/40 font-mono text-[11px]">{u.uid}</td>
                           <td className="p-4 text-white/60 font-mono">

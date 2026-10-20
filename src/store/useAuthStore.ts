@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { auth } from '../lib/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut as fbSignOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { recordUserDailyLogin } from '../services/analyticsService';
+import { useAppStore } from './useAppStore';
 
 interface AuthState {
   user: FirebaseUser | null;
@@ -28,8 +29,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         const isAdmin = user.email === 'cyber.kan587@gmail.com' || false;
         set({ user, isAdmin, loading: false });
 
-        // Save/update user log and daily statistics
-        await recordUserDailyLogin(user, isAdmin);
+        // Save/update user log and daily statistics with subscriptionPlan
+        const currentPlan = useAppStore.getState().subscriptionPlan || 'free';
+        await recordUserDailyLogin(user, isAdmin, currentPlan);
       } else {
         set({ user: null, isAdmin: false, loading: false });
       }
@@ -47,7 +49,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       const isAdmin = user.email === 'cyber.kan587@gmail.com' || false;
       set({ user, isAdmin, loading: false });
 
-      await recordUserDailyLogin(user, isAdmin);
+      const currentPlan = useAppStore.getState().subscriptionPlan || 'free';
+      await recordUserDailyLogin(user, isAdmin, currentPlan);
     } catch (error) {
       console.error('Google Sign-In error:', error);
       throw error;
