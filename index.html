@@ -4,7 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <script>
-      // Ignorer les erreurs et logs WebSocket liés au HMR en prévisualisation
+      // Intercepter WebSocket pour empêcher le client Vite HMR de tenter des connexions et générer des erreurs en prévisualisation
+      try {
+        const OriginalWebSocket = window.WebSocket;
+        window.WebSocket = function(url, protocols) {
+          if (url && (String(url).includes('hmr') || String(url).includes('localhost') || String(url).includes('ws') || String(url).includes('vite'))) {
+            return {
+              send: function() {},
+              close: function() {},
+              addEventListener: function() {},
+              removeEventListener: function() {},
+              readyState: 3,
+              CLOSED: 3,
+              OPEN: 1,
+              CONNECTING: 0,
+              CLOSING: 2
+            };
+          }
+          return new OriginalWebSocket(url, protocols);
+        };
+        window.WebSocket.CLOSED = 3;
+        window.WebSocket.OPEN = 1;
+        window.WebSocket.CONNECTING = 0;
+        window.WebSocket.CLOSING = 2;
+      } catch (e) {}
+
       const originalConsoleError = console.error;
       console.error = function(...args) {
         const str = args.map(arg => String(arg)).join(' ');

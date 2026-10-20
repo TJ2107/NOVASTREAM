@@ -62,6 +62,8 @@ export function SettingsPage() {
   const [compatTab, setCompatTab] = useState<'android' | 'tv' | 'ios' | 'desktop'>('android');
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
   const [showPayModal, setShowPayModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'mobile_money' | 'gpay'>('mobile_money');
+  const [mobileNumber, setMobileNumber] = useState('+242053886817');
 
   const shareMessages = {
     x: "🎬 Découvrez NOVASTREAM, la plateforme ultime de streaming cinéma, TV en direct et Live Watch Party ! Films, séries et flux HD sans interruption. 🚀 Rejoignez-moi dès maintenant : https://novastream.app #Novastream #Streaming #Cinema",
@@ -342,19 +344,61 @@ export function SettingsPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="text-[11px] text-white/60 block font-medium">Mode de paiement sécurisé</label>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-center text-xs font-bold text-amber-300">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('card')}
+                    className={`p-2.5 rounded-xl text-center text-xs font-bold transition cursor-pointer ${
+                      paymentMethod === 'card'
+                        ? 'bg-amber-500/25 border border-amber-500/50 text-amber-300 shadow-md'
+                        : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10'
+                    }`}
+                  >
                     Carte Bancaire
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-center text-xs font-medium text-white/70">
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('mobile_money')}
+                    className={`p-2.5 rounded-xl text-center text-xs font-bold transition cursor-pointer ${
+                      paymentMethod === 'mobile_money'
+                        ? 'bg-amber-500/25 border border-amber-500/50 text-amber-300 shadow-md'
+                        : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10'
+                    }`}
+                  >
                     Mobile Money
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-center text-xs font-medium text-white/70">
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('gpay')}
+                    className={`p-2.5 rounded-xl text-center text-xs font-bold transition cursor-pointer ${
+                      paymentMethod === 'gpay'
+                        ? 'bg-amber-500/25 border border-amber-500/50 text-amber-300 shadow-md'
+                        : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10'
+                    }`}
+                  >
                     Google Pay
-                  </div>
+                  </button>
                 </div>
+
+                {paymentMethod === 'mobile_money' && (
+                  <div className="space-y-1.5 pt-1 animate-fadeIn">
+                    <label className="text-[11px] text-amber-400 font-bold block">
+                      Numéro Mobile Money (Airtel / MTN) :
+                    </label>
+                    <input
+                      type="text"
+                      value={mobileNumber}
+                      onChange={(e) => setMobileNumber(e.target.value)}
+                      placeholder="+242053886817"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#08081c] border border-amber-500/40 text-xs text-white font-mono focus:outline-none focus:border-amber-400 transition"
+                    />
+                    <p className="text-[10px] text-white/50">
+                      Validation instantanée pour le numéro <strong>{mobileNumber}</strong> (Sans Pub).
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -373,7 +417,7 @@ export function SettingsPage() {
                     updateUserSubscription(user.uid, 'premium', expiresAt);
                   }
                   setShowPayModal(false);
-                  showToast('🎉 Félicitations ! Votre abonnement Premium 5$/mois sans pub est activé avec succès !');
+                  showToast(`🎉 Félicitations ! Abonnement VIP Sans Pub activé avec succès pour le numéro ${mobileNumber} !`);
                 }}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer"
               >

@@ -44,13 +44,13 @@ export function SplashScreen({ onComplete }: SplashProps) {
       initial={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 1.03 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="fixed inset-0 z-50 bg-[#020205] flex flex-col items-center justify-center p-4 overflow-hidden select-none"
+      className="fixed inset-0 z-50 bg-[#020205] flex flex-col items-center justify-center p-3 sm:p-6 overflow-hidden select-none"
     >
       {/* Background radial glow & atmosphere */}
       <div className="absolute w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[#E50914]/25 via-purple-700/15 to-cyan-500/10 blur-[140px] pointer-events-none animate-pulse" />
       <div className="absolute inset-0 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:28px_28px] opacity-30" />
 
-      <div className="relative z-10 flex flex-col items-center space-y-6 max-w-lg w-full text-center">
+      <div className="relative z-10 flex flex-col items-center space-y-4 sm:space-y-6 max-w-lg w-full text-center">
         {/* Animated Central Emblem */}
         <motion.div
           initial={{ scale: 0.6, opacity: 0, rotate: -8 }}
@@ -63,7 +63,7 @@ export function SplashScreen({ onComplete }: SplashProps) {
         </motion.div>
 
         {/* Title NOVA STREAM - Unfolding letter by letter */}
-        <div className="flex flex-wrap items-center justify-center gap-x-4 sm:gap-x-6 gap-y-1">
+        <div className="flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-6 gap-y-1">
           {/* Word NOVA */}
           <div className="flex items-center">
             {wordNova.map((char, idx) => (
@@ -76,7 +76,7 @@ export function SplashScreen({ onComplete }: SplashProps) {
                   duration: 0.5,
                   ease: [0.22, 1, 0.36, 1]
                 }}
-                className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tighter text-white font-mono px-0.5 sm:px-1 inline-block drop-shadow-[0_0_25px_rgba(229,9,20,0.6)]"
+                className="text-3xl sm:text-6xl md:text-7xl font-black tracking-tighter text-white font-mono px-0.5 sm:px-1 inline-block drop-shadow-[0_0_25px_rgba(229,9,20,0.6)]"
               >
                 {char}
               </motion.span>
@@ -95,7 +95,7 @@ export function SplashScreen({ onComplete }: SplashProps) {
                   duration: 0.5,
                   ease: [0.22, 1, 0.36, 1]
                 }}
-                className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white via-red-100 to-[#FF5A5F] font-mono px-0.5 sm:px-1 inline-block drop-shadow-[0_0_30px_rgba(229,9,20,0.8)]"
+                className="text-3xl sm:text-6xl md:text-7xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white via-red-100 to-[#FF5A5F] font-mono px-0.5 sm:px-1 inline-block drop-shadow-[0_0_30px_rgba(229,9,20,0.8)]"
               >
                 {char}
               </motion.span>
@@ -108,11 +108,11 @@ export function SplashScreen({ onComplete }: SplashProps) {
           initial={{ scaleX: 0, opacity: 0 }}
           animate={{ scaleX: 1, opacity: 1 }}
           transition={{ delay: 0.85, duration: 0.7, ease: 'easeOut' }}
-          className="w-48 sm:w-72 h-[2px] bg-gradient-to-r from-transparent via-[#E50914] to-transparent shadow-[0_0_15px_#E50914]"
+          className="w-36 sm:w-72 h-[2px] bg-gradient-to-r from-transparent via-[#E50914] to-transparent shadow-[0_0_15px_#E50914]"
         />
 
         {/* Slogan Message Unfolding: « Le numérique autrement dans la télé » */}
-        <div className="h-14 flex items-center justify-center">
+        <div className="min-h-12 flex items-center justify-center">
           <AnimatePresence>
             {showTagline && (
               <motion.div
@@ -120,10 +120,10 @@ export function SplashScreen({ onComplete }: SplashProps) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-2xl glass-strong border border-red-500/40 shadow-[0_0_30px_rgba(229,9,20,0.35)]"
+                className="inline-flex items-center gap-2 px-3.5 sm:px-6 py-2 sm:py-2.5 rounded-2xl glass-strong border border-red-500/40 shadow-[0_0_30px_rgba(229,9,20,0.35)] max-w-[92vw] text-center"
               >
-                <Sparkles className="w-4 h-4 text-[#FF5A5F] animate-spin" />
-                <span className="text-sm sm:text-base font-extrabold tracking-wide sm:tracking-widest bg-gradient-to-r from-white via-cyan-200 to-purple-300 bg-clip-text text-transparent uppercase">
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF5A5F] animate-spin flex-shrink-0" />
+                <span className="text-[11px] sm:text-base font-extrabold tracking-wide sm:tracking-widest bg-gradient-to-r from-white via-cyan-200 to-purple-300 bg-clip-text text-transparent uppercase leading-snug">
                   Le numérique autrement dans la télé
                 </span>
               </motion.div>
@@ -138,18 +138,18 @@ export function SplashScreen({ onComplete }: SplashProps) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="flex items-center justify-center gap-2 sm:gap-3 text-[11px] text-white/60 font-medium"
+              className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-3 text-[10px] sm:text-[11px] text-white/60 font-medium px-2"
             >
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
+              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
                 <Tv className="w-3 h-3 text-[#FF5A5F]" /> Direct
               </span>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
+              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
                 <Film className="w-3 h-3 text-amber-400" /> Cinéma 4K
               </span>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
+              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
                 <Radio className="w-3 h-3 text-cyan-400" /> Radios
               </span>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
+              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
                 <Users className="w-3 h-3 text-purple-400" /> Watch Party
               </span>
             </motion.div>
@@ -157,7 +157,7 @@ export function SplashScreen({ onComplete }: SplashProps) {
         </AnimatePresence>
 
         {/* Progress Bar Loader */}
-        <div className="w-48 sm:w-64 h-1 rounded-full bg-white/10 overflow-hidden mt-3 relative">
+        <div className="w-40 sm:w-64 h-1 rounded-full bg-white/10 overflow-hidden mt-3 relative">
           <motion.div
             initial={{ width: '0%' }}
             animate={{ width: '100%' }}
@@ -170,7 +170,7 @@ export function SplashScreen({ onComplete }: SplashProps) {
       {/* Skip button for convenience */}
       <button
         onClick={() => onCompleteRef.current?.()}
-        className="absolute bottom-6 right-6 sm:bottom-8 sm:right-8 px-4 py-2 rounded-xl glass text-white/50 hover:text-white hover:border-white/30 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+        className="absolute bottom-4 right-4 sm:bottom-8 sm:right-8 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl glass text-white/50 hover:text-white hover:border-white/30 text-[11px] sm:text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
       >
         <span>Passer</span>
         <span>→</span>

@@ -97,6 +97,7 @@ export default function AdminPage() {
   
   const todayKey = useMemo(() => getTodayKey(), []);
   const [selectedDate, setSelectedDate] = useState<string>(todayKey);
+  const [chartDaysRange, setChartDaysRange] = useState<7 | 14>(7);
 
   useEffect(() => {
     // Listen to users collection in real time
@@ -213,11 +214,11 @@ export default function AdminPage() {
     return false;
   };
 
-  // Generate last 14 days list for stats & charts
-  const past14Days = useMemo(() => {
+  // Generate last 7 or 14 days list for stats & charts
+  const pastDaysRange = useMemo(() => {
     const list: string[] = [];
     const now = new Date();
-    for (let i = 13; i >= 0; i--) {
+    for (let i = chartDaysRange - 1; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(now.getDate() - i);
       const y = d.getFullYear();
@@ -226,11 +227,11 @@ export default function AdminPage() {
       list.push(`${y}-${m}-${day}`);
     }
     return list;
-  }, []);
+  }, [chartDaysRange]);
 
-  // Compute stats per day for the last 14 days
+  // Compute stats per day for the selected days range
   const dailyStatsMap = useMemo(() => {
-    return past14Days.map((dateKey) => {
+    return pastDaysRange.map((dateKey) => {
       const connectedUsers = usersList.filter((u) => isUserConnectedOnDate(u, dateKey));
       return {
         dateKey,
@@ -238,7 +239,7 @@ export default function AdminPage() {
         users: connectedUsers
       };
     });
-  }, [past14Days, usersList]);
+  }, [pastDaysRange, usersList]);
 
   // Today stats
   const todayUsers = useMemo(() => {
@@ -591,29 +592,52 @@ export default function AdminPage() {
 
           {/* Interactive Daily Active Users Bar Chart (14 days) */}
           <div className="p-6 rounded-3xl glass-strong border border-white/10 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-emerald-400" />
-                  <span>Évolution des Utilisateurs Connectés par Jour</span>
+                  <span>Évolution des Utilisateurs Connectés</span>
                 </h3>
                 <p className="text-xs text-white/50 mt-0.5">
-                  Cliquez sur une barre pour afficher la liste des utilisateurs connectés pour cette date spécifique.
+                  Cliquez sur une barre pour afficher la liste des utilisateurs connectés pour cette date.
                 </p>
               </div>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="flex items-center gap-1.5 text-white/70">
-                  <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" /> Aujourd'hui
-                </span>
-                <span className="flex items-center gap-1.5 text-white/70 ml-2">
-                  <span className="w-3 h-3 rounded-sm bg-indigo-500 inline-block" /> Autres Jours
-                </span>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {/* 7j / 14j Toggle */}
+                <div className="flex items-center bg-white/5 p-1 rounded-xl border border-white/10 text-xs">
+                  <button
+                    onClick={() => setChartDaysRange(7)}
+                    className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                      chartDaysRange === 7 ? 'bg-indigo-600 text-white shadow-sm' : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    7 Jours
+                  </button>
+                  <button
+                    onClick={() => setChartDaysRange(14)}
+                    className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                      chartDaysRange === 14 ? 'bg-indigo-600 text-white shadow-sm' : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    14 Jours
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="flex items-center gap-1 text-white/70">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" /> Aujourd'hui
+                  </span>
+                  <span className="flex items-center gap-1 text-white/70 ml-1">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-indigo-500 inline-block" /> Autres
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Bar Chart Container */}
-            <div className="pt-8 pb-4 px-2">
-              <div className="h-48 flex items-end gap-2 sm:gap-4 justify-between border-b border-white/10 pb-2">
+            {/* Bar Chart Container with horizontal scroll support on mobile */}
+            <div className="pt-8 pb-4 px-1 overflow-x-auto no-scrollbar">
+              <div className={`h-48 flex items-end gap-2 sm:gap-4 justify-between border-b border-white/10 pb-2 ${chartDaysRange === 14 ? 'min-w-[520px]' : 'min-w-[320px]'}`}>
                 {dailyStatsMap.map((item) => {
                   const isSelected = selectedDate === item.dateKey;
                   const isToday = item.dateKey === todayKey;
@@ -715,82 +739,122 @@ export default function AdminPage() {
                   </p>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-white/10 overflow-hidden bg-black/20">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse min-w-[620px]">
-                      <thead>
-                        <tr className="border-b border-white/10 bg-white/5 text-[11px] font-mono font-bold text-white/60">
-                          <th className="p-3.5">Utilisateur</th>
-                          <th className="p-3.5">Email</th>
-                          <th className="p-3.5">Rôle</th>
-                          <th className="p-3.5">Abonnement</th>
-                          <th className="p-3.5">Dernière activité</th>
-                          <th className="p-3.5">Statut</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5 text-xs">
-                        {selectedDateUsers.map((u) => (
-                          <tr key={u.uid} className="hover:bg-white/[0.02] transition">
-                            <td className="p-3.5 flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-xl overflow-hidden bg-indigo-950 border border-indigo-400/40 flex-shrink-0">
-                                {u.photoURL ? (
-                                  <img src={u.photoURL} alt="Avatar" className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-white font-bold text-xs">
-                                    {u.name?.[0] || 'U'}
-                                  </div>
-                                )}
-                              </div>
-                              <div>
-                                <span className="font-bold text-white block">{u.name || 'Utilisateur'}</span>
-                                <span className="text-[10px] text-white/40 font-mono truncate max-w-[140px] block">
-                                  {u.uid}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="p-3.5 text-white/70 font-mono">{u.email}</td>
-                            <td className="p-3.5">
-                              <span
-                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                                  u.role === 'admin'
-                                    ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
-                                    : 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
-                                }`}
-                              >
-                                {u.role ? u.role.toUpperCase() : 'USER'}
-                              </span>
-                            </td>
-                            <td className="p-3.5">
-                              {renderSubscriptionBadge(u.subscriptionPlan)}
-                            </td>
-                            <td className="p-3.5 text-white/60 font-mono">
-                              {u.lastLogin?.toDate
-                                ? new Date(u.lastLogin.toDate()).toLocaleTimeString('fr-FR', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    second: '2-digit'
-                                  })
-                                : 'Actif'}
-                            </td>
-                            <td className="p-3.5">
-                              {selectedDate === todayKey ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                  Actif aujourd'hui
-                                </span>
+                <>
+                  {/* Mobile Card View (< md) */}
+                  <div className="block md:hidden space-y-2.5">
+                    {selectedDateUsers.map((u) => (
+                      <div key={u.uid} className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-2.5 shadow-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-9 h-9 rounded-xl overflow-hidden bg-indigo-950 border border-indigo-400/40 flex-shrink-0">
+                              {u.photoURL ? (
+                                <img src={u.photoURL} alt="Avatar" className="w-full h-full object-cover" />
                               ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/5 text-white/60 text-[10px]">
-                                  <CheckCircle2 className="w-3 h-3 text-cyan-400" />
-                                  Présent ce jour
-                                </span>
+                                <div className="w-full h-full flex items-center justify-center text-white font-bold text-xs">
+                                  {u.name?.[0] || 'U'}
+                                </div>
                               )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-bold text-white text-xs truncate block">{u.name || 'Utilisateur'}</span>
+                              <span className="text-[10px] text-white/50 font-mono truncate block">{u.email}</span>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold flex-shrink-0 ${
+                            u.role === 'admin' ? 'bg-amber-950 text-amber-300 border border-amber-500/40' : 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
+                          }`}>
+                            {u.role ? u.role.toUpperCase() : 'USER'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
+                          <div>{renderSubscriptionBadge(u.subscriptionPlan)}</div>
+                          <span className="text-white/50 font-mono text-[10px]">
+                            {u.lastLogin?.toDate ? new Date(u.lastLogin.toDate()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : 'Actif'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+
+                  {/* Desktop Table View (>= md) */}
+                  <div className="hidden md:block rounded-2xl border border-white/10 overflow-hidden bg-black/20">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[620px]">
+                        <thead>
+                          <tr className="border-b border-white/10 bg-white/5 text-[11px] font-mono font-bold text-white/60">
+                            <th className="p-3.5">Utilisateur</th>
+                            <th className="p-3.5">Email</th>
+                            <th className="p-3.5">Rôle</th>
+                            <th className="p-3.5">Abonnement</th>
+                            <th className="p-3.5">Dernière activité</th>
+                            <th className="p-3.5">Statut</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5 text-xs">
+                          {selectedDateUsers.map((u) => (
+                            <tr key={u.uid} className="hover:bg-white/[0.02] transition">
+                              <td className="p-3.5 flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl overflow-hidden bg-indigo-950 border border-indigo-400/40 flex-shrink-0">
+                                  {u.photoURL ? (
+                                    <img src={u.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-white font-bold text-xs">
+                                      {u.name?.[0] || 'U'}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <span className="font-bold text-white block">{u.name || 'Utilisateur'}</span>
+                                  <span className="text-[10px] text-white/40 font-mono truncate max-w-[140px] block">
+                                    {u.uid}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="p-3.5 text-white/70 font-mono">{u.email}</td>
+                              <td className="p-3.5">
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                                    u.role === 'admin'
+                                      ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                                      : 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
+                                  }`}
+                                >
+                                  {u.role ? u.role.toUpperCase() : 'USER'}
+                                </span>
+                              </td>
+                              <td className="p-3.5">
+                                {renderSubscriptionBadge(u.subscriptionPlan)}
+                              </td>
+                              <td className="p-3.5 text-white/60 font-mono">
+                                {u.lastLogin?.toDate
+                                  ? new Date(u.lastLogin.toDate()).toLocaleTimeString('fr-FR', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      second: '2-digit'
+                                    })
+                                  : 'Actif'}
+                              </td>
+                              <td className="p-3.5">
+                                {selectedDate === todayKey ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                    Actif aujourd'hui
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/5 text-white/60 text-[10px]">
+                                    <CheckCircle2 className="w-3 h-3 text-cyan-400" />
+                                    Présent ce jour
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -839,72 +903,119 @@ export default function AdminPage() {
               <p className="text-xs text-white/50">Modifiez votre recherche ou attendez de nouvelles connexions.</p>
             </div>
           ) : (
-            <div className="rounded-3xl glass-strong border border-indigo-500/20 overflow-hidden shadow-2xl">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[700px]">
-                  <thead>
-                    <tr className="border-b border-white/10 bg-white/5 text-[11px] font-mono font-bold text-white/60">
-                      <th className="p-4">Utilisateur</th>
-                      <th className="p-4">Email</th>
-                      <th className="p-4">Rôle</th>
-                      <th className="p-4">Abonnement</th>
-                      <th className="p-4">UID Firestore</th>
-                      <th className="p-4">Dernière Connexion</th>
-                      <th className="p-4">Statut Jour</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5 text-xs">
-                    {filteredAllUsers.map((u) => {
-                      const isOnlineToday = isUserConnectedOnDate(u, todayKey);
-                      return (
-                        <tr key={u.uid} className="hover:bg-white/[0.02] transition">
-                          <td className="p-4 flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl overflow-hidden bg-indigo-950 border border-indigo-400/40 flex-shrink-0">
-                              {u.photoURL ? (
-                                <img src={u.photoURL} alt="Avatar" className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-white font-bold text-xs">
-                                  {u.name?.[0] || 'U'}
-                                </div>
-                              )}
-                            </div>
-                            <span className="font-bold text-white">{u.name}</span>
-                          </td>
-                          <td className="p-4 text-white/70 font-mono">{u.email}</td>
-                          <td className="p-4">
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                                u.role === 'admin'
-                                  ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
-                                  : 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
-                              }`}
-                            >
-                              {u.role ? u.role.toUpperCase() : 'USER'}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            {renderSubscriptionBadge(u.subscriptionPlan)}
-                          </td>
-                          <td className="p-4 text-white/40 font-mono text-[11px]">{u.uid}</td>
-                          <td className="p-4 text-white/60 font-mono">
-                            {u.lastLogin?.toDate ? new Date(u.lastLogin.toDate()).toLocaleString() : 'Récemment'}
-                          </td>
-                          <td className="p-4">
-                            {isOnlineToday ? (
-                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold">
-                                Actif aujourd'hui
-                              </span>
+            <>
+              {/* Mobile Card View (< md) */}
+              <div className="block md:hidden space-y-3">
+                {filteredAllUsers.map((u) => {
+                  const isOnlineToday = isUserConnectedOnDate(u, todayKey);
+                  return (
+                    <div key={u.uid} className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 space-y-3 shadow-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-indigo-950 border border-indigo-400/40 flex-shrink-0">
+                            {u.photoURL ? (
+                              <img src={u.photoURL} alt="Avatar" className="w-full h-full object-cover" />
                             ) : (
-                              <span className="text-white/40 text-[10px] font-mono">Hors ligne</span>
+                              <div className="w-full h-full flex items-center justify-center text-white font-bold text-xs">
+                                {u.name?.[0] || 'U'}
+                              </div>
                             )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-bold text-white text-xs truncate block">{u.name || 'Utilisateur'}</span>
+                            <span className="text-[11px] text-white/60 font-mono truncate block">{u.email}</span>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold flex-shrink-0 ${
+                          u.role === 'admin' ? 'bg-amber-950 text-amber-300 border border-amber-500/40' : 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
+                        }`}>
+                          {u.role ? u.role.toUpperCase() : 'USER'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
+                        <div>{renderSubscriptionBadge(u.subscriptionPlan)}</div>
+                        {isOnlineToday ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold">
+                            Actif aujourd'hui
+                          </span>
+                        ) : (
+                          <span className="text-white/40 text-[10px] font-mono">Hors ligne</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+
+              {/* Desktop Table View (>= md) */}
+              <div className="hidden md:block rounded-3xl glass-strong border border-indigo-500/20 overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                      <tr className="border-b border-white/10 bg-white/5 text-[11px] font-mono font-bold text-white/60">
+                        <th className="p-4">Utilisateur</th>
+                        <th className="p-4">Email</th>
+                        <th className="p-4">Rôle</th>
+                        <th className="p-4">Abonnement</th>
+                        <th className="p-4">UID Firestore</th>
+                        <th className="p-4">Dernière Connexion</th>
+                        <th className="p-4">Statut Jour</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 text-xs">
+                      {filteredAllUsers.map((u) => {
+                        const isOnlineToday = isUserConnectedOnDate(u, todayKey);
+                        return (
+                          <tr key={u.uid} className="hover:bg-white/[0.02] transition">
+                            <td className="p-4 flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl overflow-hidden bg-indigo-950 border border-indigo-400/40 flex-shrink-0">
+                                {u.photoURL ? (
+                                  <img src={u.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-white font-bold text-xs">
+                                    {u.name?.[0] || 'U'}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="font-bold text-white">{u.name}</span>
+                            </td>
+                            <td className="p-4 text-white/70 font-mono">{u.email}</td>
+                            <td className="p-4">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                                  u.role === 'admin'
+                                    ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                                    : 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
+                                }`}
+                              >
+                                {u.role ? u.role.toUpperCase() : 'USER'}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              {renderSubscriptionBadge(u.subscriptionPlan)}
+                            </td>
+                            <td className="p-4 text-white/40 font-mono text-[11px]">{u.uid}</td>
+                            <td className="p-4 text-white/60 font-mono">
+                              {u.lastLogin?.toDate ? new Date(u.lastLogin.toDate()).toLocaleString() : 'Récemment'}
+                            </td>
+                            <td className="p-4">
+                              {isOnlineToday ? (
+                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold">
+                                  Actif aujourd'hui
+                                </span>
+                              ) : (
+                                <span className="text-white/40 text-[10px] font-mono">Hors ligne</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}
