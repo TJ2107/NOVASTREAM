@@ -777,8 +777,8 @@ export const useAppStore = create<AppState>()(
       incrementFreeWatchSeconds: (delta) => set((s) => {
         if (s.subscriptionPlan !== 'free') return s;
         const next = s.freeWatchSeconds + delta;
-        // 30 minutes = 1800 seconds
-        if (next >= 1800 && !s.showInterstitialAd) {
+        // 5 minutes = 300 seconds
+        if (next >= 300 && !s.showInterstitialAd) {
           return { freeWatchSeconds: 0, showInterstitialAd: true };
         }
         return { freeWatchSeconds: next };

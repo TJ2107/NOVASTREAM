@@ -94,7 +94,7 @@ export function InterstitialAdModal() {
           </p>
 
           <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-[11px] text-white/40 font-mono border-t border-white/10 pt-3">
-            <span>Abonnement Gratuit (Pub toutes les 30 min)</span>
+            <span>Abonnement Gratuit (Pub toutes les 5 min)</span>
             <span>NovaStream 2026</span>
           </div>
         </div>
