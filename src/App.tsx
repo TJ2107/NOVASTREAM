@@ -54,7 +54,7 @@ export default function App() {
     setShowSplash(false);
   }, []);
 
-  const isPlayingMedia = /^\/(tv|movies|series)\/[^/]+$/.test(location.pathname) || location.pathname === '/multiview';
+  const isPlayingMedia = /^\/(tv|movies|series)\/[^/]+$/.test(location.pathname) || location.pathname === '/multiview' || (location.pathname === '/browser' && location.search.includes('category='));
 
   // Periodic subscription auto-expiration check:
   // If subscription expiration timestamp has passed, automatically downgrade to free plan

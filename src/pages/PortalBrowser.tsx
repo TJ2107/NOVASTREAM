@@ -141,6 +141,8 @@ export function PortalBrowser() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  const [isTopBarRetracted, setIsTopBarRetracted] = useState(false);
+
   const handleSendToApp = (type: MediaType) => {
     const typeTitles: Record<MediaType, string> = {
       live: 'TV en direct',
@@ -160,6 +162,9 @@ export function PortalBrowser() {
     };
     addSource(item);
 
+    // Retract address bar & header to maximize viewing space as requested
+    setIsTopBarRetracted(true);
+
     if (type === 'live') {
       navigate(`/tv/${item.id}`);
     } else if (type === 'series') {
@@ -178,8 +183,22 @@ export function PortalBrowser() {
         tvMode ? 'tv-mode' : ''
       }`}
     >
-      {/* Top Browser Command Bar */}
-      <div className="glass-strong border-b border-purple-500/20 px-3 py-2.5 flex flex-col gap-2 z-20 shadow-xl flex-shrink-0">
+      {/* Retraction toggle floating tab when retracted */}
+      {isTopBarRetracted && (
+        <button
+          type="button"
+          onClick={() => setIsTopBarRetracted(false)}
+          className="absolute top-2 left-1/2 -translate-x-1/2 z-30 px-3 py-1 rounded-full bg-cyan-600/90 hover:bg-cyan-500 text-white text-[10px] font-bold shadow-lg border border-cyan-400/50 flex items-center gap-1.5 transition cursor-pointer animate-bounce"
+          title="Afficher la barre d'adresse et le header"
+        >
+          <span>▼ Afficher la barre d'adresse & le header</span>
+        </button>
+      )}
+
+      {/* Top Browser Command Bar (Retractable upwards) */}
+      <div className={`glass-strong border-b border-purple-500/20 px-3 py-2.5 flex flex-col gap-2 z-20 shadow-xl flex-shrink-0 transition-all duration-300 ease-in-out ${
+        isTopBarRetracted ? '-translate-y-full opacity-0 pointer-events-none h-0 py-0 overflow-hidden border-0' : 'translate-y-0 opacity-100'
+      }`}>
         <div className="flex items-center justify-between gap-2.5">
           {/* Brand & History Controls */}
           <div className="flex items-center gap-1.5 flex-shrink-0">

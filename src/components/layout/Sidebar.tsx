@@ -209,9 +209,9 @@ export function Sidebar({
               <div className="space-y-1.5">
                 <button
                   onClick={() => setShowShareModal(true)}
-                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600/30 to-blue-600/30 hover:from-cyan-600/50 hover:to-blue-600/50 border border-cyan-500/30 text-white text-xs font-bold flex items-center justify-center gap-2 transition shadow-md"
+                  className="w-full py-1.5 px-2.5 rounded-xl bg-gradient-to-r from-cyan-600/30 to-blue-600/30 hover:from-cyan-600/50 hover:to-blue-600/50 border border-cyan-500/30 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition shadow-sm"
                 >
-                  <Share2 className="w-4 h-4 text-cyan-300" />
+                  <Share2 className="w-3.5 h-3.5 text-cyan-300" />
                   <span>Partager sur X, FB & LinkedIn</span>
                 </button>
 
