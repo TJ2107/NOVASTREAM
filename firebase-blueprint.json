@@ -42,6 +42,24 @@
       "required": ["roomId", "roomName", "hostId"]
     }
   },
+    "Payment": {
+      "title": "Payment",
+      "description": "Mobile Money subscription payment transactions.",
+      "type": "object",
+      "properties": {
+        "targetEmail": { "type": "string" },
+        "senderPhone": { "type": "string" },
+        "targetPhone": { "type": "string" },
+        "operator": { "type": "string" },
+        "amount": { "type": "string" },
+        "transactionRef": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "durationMonths": { "type": "number" },
+        "expiresAt": { "type": "number" }
+      },
+      "required": ["targetEmail", "senderPhone", "operator", "amount", "status"]
+    }
+  },
   "firestore": {
     "watch-parties/{roomId}": {
       "schema": "WatchParty",
@@ -54,6 +72,10 @@
     "watch-parties/{roomId}/participants/{participantId}": {
       "schema": "WatchPartyParticipant",
       "description": "Participants within a watch party."
+    },
+    "payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Airtel and Mobile Money customer payment documents."
     }
   }
 }

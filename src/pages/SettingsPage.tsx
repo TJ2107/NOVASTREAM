@@ -30,7 +30,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { updateUserSubscription, activatePremiumByEmail } from '../services/analyticsService';
+import { updateUserSubscription, activatePremiumByEmail, submitPendingPayment } from '../services/analyticsService';
 import { VPNBadge } from '../components/common/VPNBadge';
 import { DnsHelpModal } from '../components/common/DnsHelpModal';
 
@@ -54,6 +54,7 @@ export function SettingsPage() {
     tvMode,
     setTVMode,
     subscriptionPlan,
+    subscriptionExpiresAt,
     setSubscriptionPlan
   } = useAppStore();
 
@@ -65,12 +66,19 @@ export function SettingsPage() {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'mobile_money' | 'gpay'>('mobile_money');
   const [mobileOperator, setMobileOperator] = useState<'airtel' | 'mtn'>('airtel');
   const [mobileNumber, setMobileNumber] = useState('+242053886817');
+  const [senderPhoneNumber, setSenderPhoneNumber] = useState('');
   const [targetAccountEmail, setTargetAccountEmail] = useState('');
   const [confirmAccountEmail, setConfirmAccountEmail] = useState('');
   const [transactionRef, setTransactionRef] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [numberCopied, setNumberCopied] = useState(false);
+  const [paymentSubmittedData, setPaymentSubmittedData] = useState<{
+    email: string;
+    phone: string;
+    txRef: string;
+    autoApproved?: boolean;
+  } | null>(null);
 
   const shareMessages = {
     x: "🎬 Découvrez NOVASTREAM, la plateforme ultime de streaming cinéma, TV en direct et Live Watch Party ! Films, séries et flux HD sans interruption. 🚀 Rejoignez-moi dès maintenant : https://novastream.app #Novastream #Streaming #Cinema",
@@ -265,15 +273,36 @@ export function SettingsPage() {
                   <Sparkles className="w-3 h-3" /> VIP Sans Pub
                 </span>
                 {subscriptionPlan === 'premium' && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold flex items-center gap-1">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold flex items-center gap-1">
                     <Check className="w-3 h-3" /> Actif
                   </span>
                 )}
               </div>
               <div>
                 <h3 className="text-base font-black text-white">NovaStream Premium</h3>
-                <p className="text-xs text-amber-400 font-bold mt-0.5">5 $ <span className="text-white/60 font-normal">/ mois</span></p>
+                <p className="text-xs text-amber-400 font-bold mt-0.5">5 $ <span className="text-white/60 font-normal">/ mois (3 000 FCFA)</span></p>
               </div>
+
+              {/* Real-time Expiration Status & Remaining Days */}
+              {subscriptionPlan === 'premium' && subscriptionExpiresAt && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-amber-200 font-semibold flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Statut VIP
+                    </span>
+                    <span className="text-emerald-400 font-mono font-bold text-[11px]">
+                      {Math.max(0, Math.ceil((subscriptionExpiresAt - Date.now()) / (1000 * 60 * 60 * 24)))} jours restants
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-white/70">
+                    Expire le : <strong className="text-white font-mono">{new Date(subscriptionExpiresAt).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</strong>
+                  </p>
+                  <p className="text-[10px] text-white/50">
+                    À expiration, le compte basculera automatiquement sur le plan gratuit avec publicité.
+                  </p>
+                </div>
+              )}
+
               <ul className="text-xs text-white/80 space-y-2 pt-2">
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
@@ -285,33 +314,90 @@ export function SettingsPage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-                  <span>Badge VIP exclusif et Support prioritaire 24/7</span>
+                  <span>Paiement Airtel Money (+242053886817) sécurisé</span>
                 </li>
               </ul>
             </div>
 
             <button
               onClick={() => {
-                if (subscriptionPlan === 'premium') {
-                  showToast('Votre abonnement Premium 5$/mois est déjà actif !');
-                } else {
-                  const initialEmail = user?.email || '';
-                  setTargetAccountEmail(initialEmail);
-                  setConfirmAccountEmail(initialEmail);
-                  setPaymentMethod('mobile_money');
-                  setMobileOperator('airtel');
-                  setPayError(null);
-                  setShowPayModal(true);
-                }
+                const initialEmail = user?.email || '';
+                setTargetAccountEmail(initialEmail);
+                setConfirmAccountEmail(initialEmail);
+                setSenderPhoneNumber('');
+                setTransactionRef('');
+                setPaymentMethod('mobile_money');
+                setMobileOperator('airtel');
+                setPayError(null);
+                setShowPayModal(true);
               }}
-              className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg ${subscriptionPlan === 'premium' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 cursor-default' : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black shadow-amber-500/20'}`}
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black shadow-amber-500/20"
             >
               <Zap className="w-4 h-4" />
-              <span>{subscriptionPlan === 'premium' ? 'Abonnement VIP Actif' : 'S\'abonner pour 5$ / mois'}</span>
+              <span>{subscriptionPlan === 'premium' ? 'Prolonger mon abonnement (+30j)' : 'S\'abonner pour 5$ / mois'}</span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* Confirmation Drawer / Modal after Payment Request Submitted */}
+      {paymentSubmittedData && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="glass-strong rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-emerald-500/40 space-y-5 shadow-2xl relative">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-black text-white">Demande de Paiement Soumise !</h3>
+              <p className="text-xs text-white/60">
+                Votre transaction Airtel Money a été transmise à l'administrateur pour vérification.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2.5 text-xs font-mono">
+              <div className="flex justify-between">
+                <span className="text-white/50">Numéro récepteur :</span>
+                <span className="text-amber-300 font-bold">+242053886817 (Airtel)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/50">Votre N° expéditeur :</span>
+                <span className="text-white">{paymentSubmittedData.phone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/50">Compte à activer :</span>
+                <span className="text-emerald-300">{paymentSubmittedData.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/50">Référence SMS / ID :</span>
+                <span className="text-white/80">{paymentSubmittedData.txRef}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/50">Montant :</span>
+                <span className="text-amber-400 font-bold">5,00 $ (3 000 FCFA) • 1 Mois</span>
+              </div>
+              <div className="flex justify-between border-t border-white/10 pt-2">
+                <span className="text-white/50">Statut :</span>
+                <span className="text-amber-300 font-bold flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  En attente de validation
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-white/70 leading-relaxed bg-amber-950/30 p-3 rounded-xl border border-amber-500/30">
+              💡 <strong>Comment ça fonctionne ?</strong> Dès que l'administrateur vérifie la réception des 3 000 FCFA sur le <strong>+242053886817</strong>, votre compte passera automatiquement en VIP Sans Pub pour 30 jours. Vous n'avez rien d'autre à faire !
+            </p>
+
+            <button
+              onClick={() => setPaymentSubmittedData(null)}
+              className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs transition cursor-pointer"
+            >
+              J'ai compris, fermer
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Payment Modal with Airtel Mobile Money & Email Confirmation */}
       {showPayModal && (
@@ -326,7 +412,7 @@ export function SettingsPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white">NovaStream Premium Sans Pub</h3>
-                  <p className="text-xs text-amber-400 font-semibold">5,00 $ US (3 000 FCFA) • Durée : 1 Mois</p>
+                  <p className="text-xs text-amber-400 font-semibold">5,00 $ US (3 000 FCFA) • Durée : 1 Mois (30 jours)</p>
                 </div>
               </div>
               <button
@@ -448,12 +534,29 @@ export function SettingsPage() {
                         +242053886817
                       </div>
                       <p className="text-[10px] text-white/70 leading-relaxed">
-                        Envoyez <strong>5,00 $ (ou 3 000 FCFA)</strong> vers le <strong>+242053886817</strong>, puis confirmez l'email de votre compte ci-dessous.
+                        Étape 1 : Effectuez votre transfert de <strong>5,00 $ (ou 3 000 FCFA)</strong> vers le <strong>+242053886817</strong>, puis renseignez ci-dessous vos informations.
                       </p>
                     </div>
 
-                    {/* Email confirmation fields */}
+                    {/* Client sender phone & Email confirmation fields */}
                     <div className="space-y-2.5 pt-1 border-t border-white/10">
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-amber-300 font-bold block">
+                          Votre Numéro de téléphone ayant envoyé les fonds :
+                        </label>
+                        <input
+                          type="tel"
+                          value={senderPhoneNumber}
+                          onChange={(e) => {
+                            setSenderPhoneNumber(e.target.value);
+                            setPayError(null);
+                          }}
+                          placeholder="ex: +242 05 388 68 17 ou 06 XXX XX XX"
+                          required
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-[#08081c] border border-white/15 text-xs text-white placeholder-white/30 font-mono focus:outline-none focus:border-amber-400 transition"
+                        />
+                      </div>
+
                       <div className="space-y-1">
                         <label className="text-[11px] text-amber-300 font-bold block">
                           Email du compte à passer en Premium Sans Pub :
@@ -502,13 +605,13 @@ export function SettingsPage() {
                       {/* Transaction reference ID */}
                       <div className="space-y-1">
                         <label className="text-[10px] text-white/50 block font-mono">
-                          Référence SMS / ID de transaction Airtel (optionnel) :
+                          Référence SMS / ID de transaction reçu par SMS :
                         </label>
                         <input
                           type="text"
                           value={transactionRef}
                           onChange={(e) => setTransactionRef(e.target.value)}
-                          placeholder="ex: PP261021.1245.G7894"
+                          placeholder="ex: PP261021.1245.G7894 (reçu par SMS)"
                           className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white/80 placeholder-white/30 font-mono focus:outline-none focus:border-amber-400 transition"
                         />
                       </div>
@@ -540,6 +643,12 @@ export function SettingsPage() {
                   if (paymentMethod === 'mobile_money') {
                     const email1 = targetAccountEmail.trim().toLowerCase();
                     const email2 = confirmAccountEmail.trim().toLowerCase();
+                    const phone = senderPhoneNumber.trim();
+
+                    if (!phone) {
+                      setPayError('Veuillez indiquer le numéro ayant envoyé les fonds.');
+                      return;
+                    }
                     if (!email1 || !email1.includes('@')) {
                       setPayError('Veuillez saisir une adresse email valide.');
                       return;
@@ -551,26 +660,27 @@ export function SettingsPage() {
 
                     setIsProcessingPayment(true);
                     try {
-                      const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-                      await activatePremiumByEmail(email1, expiresAt, {
-                        phone: '+242053886817',
+                      // Submit pending payment to Firestore for admin review
+                      const tx = transactionRef.trim() || `AIRTEL-${Date.now().toString().slice(-6)}`;
+                      await submitPendingPayment({
+                        targetEmail: email1,
+                        userId: user?.uid,
+                        userName: user?.displayName || 'Client',
+                        senderPhone: phone,
+                        transactionRef: tx,
                         operator: mobileOperator === 'airtel' ? 'Airtel Money (+242)' : 'MTN Mobile Money (+242)',
                         amount: '5,00 $ (3 000 FCFA)',
-                        transactionRef: transactionRef.trim() || undefined
+                        durationMonths: 1
                       });
 
-                      // If current active user is this email, update active session and store
-                      if (user?.email?.trim().toLowerCase() === email1) {
-                        setSubscriptionPlan('premium', expiresAt);
-                        if (user?.uid) {
-                          await updateUserSubscription(user.uid, 'premium', expiresAt);
-                        }
-                      }
-
                       setShowPayModal(false);
-                      showToast(`🎉 Paiement confirmé ! Le compte ${email1} est passé en Premium Sans Pub pour 1 mois (jusqu'au ${new Date(expiresAt).toLocaleDateString('fr-FR')}) !`);
+                      setPaymentSubmittedData({
+                        email: email1,
+                        phone: phone,
+                        txRef: tx
+                      });
                     } catch (err: any) {
-                      setPayError(err?.message || 'Erreur lors de la confirmation du paiement.');
+                      setPayError(err?.message || 'Erreur lors de la transmission du paiement.');
                     } finally {
                       setIsProcessingPayment(false);
                     }
@@ -588,12 +698,13 @@ export function SettingsPage() {
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>{isProcessingPayment ? 'Validation...' : 'Confirmer & Activer 1 Mois (5$)'}</span>
+                <span>{isProcessingPayment ? 'Enregistrement...' : 'Valider mon Paiement (5$)'}</span>
               </button>
             </div>
           </div>
         </div>
       )}
+
 
       {/* Section 1: Audio & Volume Management */}
       <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-6">

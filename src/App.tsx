@@ -38,7 +38,14 @@ const AdminPage = lazyWithRetry(() => import('./pages/AdminPage'));
 
 export default function App() {
   const location = useLocation();
-  const { tvMode, isInterfaceVisible, subscriptionPlan, incrementFreeWatchSeconds } = useAppStore();
+  const {
+    tvMode,
+    isInterfaceVisible,
+    subscriptionPlan,
+    subscriptionExpiresAt,
+    setSubscriptionPlan,
+    incrementFreeWatchSeconds
+  } = useAppStore();
   const { user, isAdmin, loading, initAuth } = useAuthStore();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -48,6 +55,24 @@ export default function App() {
   }, []);
 
   const isPlayingMedia = /^\/(tv|movies|series)\/[^/]+$/.test(location.pathname) || location.pathname === '/multiview';
+
+  // Periodic subscription auto-expiration check:
+  // If subscription expiration timestamp has passed, automatically downgrade to free plan
+  useEffect(() => {
+    if (subscriptionPlan !== 'premium' || !subscriptionExpiresAt) return;
+    const verifyExpiration = async () => {
+      if (Date.now() > subscriptionExpiresAt) {
+        setSubscriptionPlan('free', null);
+        if (user?.uid) {
+          const { updateUserSubscription } = await import('./services/analyticsService');
+          updateUserSubscription(user.uid, 'free', null);
+        }
+      }
+    };
+    verifyExpiration();
+    const interval = setInterval(verifyExpiration, 30000);
+    return () => clearInterval(interval);
+  }, [subscriptionPlan, subscriptionExpiresAt, setSubscriptionPlan, user]);
 
   // Accumulate watch time for free users when watching media
   useEffect(() => {
@@ -62,6 +87,7 @@ export default function App() {
   useEffect(() => {
     initAuth();
   }, [initAuth]);
+
 
   // Enable TV remote control navigation when TV mode is active
   useTVRemoteNavigation();

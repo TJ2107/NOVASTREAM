@@ -30,12 +30,24 @@ import {
   Info,
   Check,
   Eye,
-  Tv
+  Tv,
+  CreditCard,
+  Copy,
+  X,
+  XCircle,
+  CheckCircle,
+  DollarSign
 } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { useAuthStore } from '../store/useAuthStore';
-import { getTodayKey } from '../services/analyticsService';
+import {
+  getTodayKey,
+  PaymentRecord,
+  approvePayment,
+  rejectPayment,
+  setManualSubscription
+} from '../services/analyticsService';
 import {
   Announcement,
   AnnouncementType,
@@ -45,6 +57,13 @@ import {
   deleteAnnouncement,
   subscribeToAdminAnnouncements
 } from '../services/announcementService';
+import {
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  deleteAllReadNotifications,
+  subscribeToAdminNotifications
+} from '../services/notificationService';
 import { Link } from 'react-router-dom';
 
 interface UserLog {
@@ -76,12 +95,29 @@ export default function AdminPage() {
   const { user, isAdmin } = useAuthStore();
   const [usersList, setUsersList] = useState<UserLog[]>([]);
   const [feedbackList, setFeedbackList] = useState<UserFeedback[]>([]);
-  const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'feedback' | 'notifications' | 'communication'>('stats');
+  const [paymentsList, setPaymentsList] = useState<PaymentRecord[]>([]);
+  const [activeTab, setActiveTab] = useState<'stats' | 'payments' | 'users' | 'feedback' | 'notifications' | 'communication'>('stats');
   const [searchQuery, setSearchQuery] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [subscriptionFilter, setSubscriptionFilter] = useState<'all' | 'free' | 'premium'>('all');
   const [notifications, setNotifications] = useState<any[]>([]);
+
+  // Mobile Money Payments Management State
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [paymentSearchQuery, setPaymentSearchQuery] = useState('');
+  const [manualTargetEmail, setManualTargetEmail] = useState('');
+  const [manualDurationDays, setManualDurationDays] = useState<number>(30);
+  const [manualPlanChoice, setManualPlanChoice] = useState<'premium' | 'free'>('premium');
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [adminActionToast, setAdminActionToast] = useState<string | null>(null);
+  const [confirmDowngradeUid, setConfirmDowngradeUid] = useState<string | null>(null);
+  const [copiedRef, setCopiedRef] = useState<string | null>(null);
+  const [rejectModal, setRejectModal] = useState<{ open: boolean; payment: PaymentRecord | null; reason: string }>({
+    open: false,
+    payment: null,
+    reason: 'Fonds non reçus sur le compte Airtel Money (+242053886817)'
+  });
 
   // Communication & Announcements State
   const [announcementsList, setAnnouncementsList] = useState<Announcement[]>([]);
@@ -121,17 +157,22 @@ export default function AdminPage() {
       }
     );
 
-    // Listen to notifications collection in real time
-    const unsubNotifications = onSnapshot(
-      query(collection(db, 'notifications'), orderBy('timestamp', 'desc')),
+    // Listen to payments collection in real time
+    const unsubPayments = onSnapshot(
+      query(collection(db, 'payments'), orderBy('createdAt', 'desc')),
       (snapshot) => {
         const items = snapshot.docs.map((docSnap) => ({
-          ...(docSnap.data() as any),
+          ...(docSnap.data() as PaymentRecord),
           id: docSnap.id
         }));
-        setNotifications(items);
+        setPaymentsList(items);
       }
     );
+
+    // Listen to notifications collection in real time using notificationService
+    const unsubNotifications = subscribeToAdminNotifications((items) => {
+      setNotifications(items);
+    });
 
     // Listen to announcements in real time
     const unsubAnnouncements = subscribeToAdminAnnouncements((list) => {
@@ -141,6 +182,7 @@ export default function AdminPage() {
     return () => {
       unsubUsers();
       unsubFeedback();
+      unsubPayments();
       unsubNotifications();
       unsubAnnouncements();
     };
@@ -307,14 +349,65 @@ export default function AdminPage() {
     return usersList.length - premiumCount;
   }, [usersList, premiumCount]);
 
-  // Helper to render subscription badge
-  const renderSubscriptionBadge = (plan?: 'free' | 'premium') => {
-    if (plan === 'premium') {
+  // Payments counts & memos
+  const pendingPayments = useMemo(() => {
+    return paymentsList.filter((p) => p.status === 'pending');
+  }, [paymentsList]);
+
+  const approvedPayments = useMemo(() => {
+    return paymentsList.filter((p) => p.status === 'approved');
+  }, [paymentsList]);
+
+  const rejectedPayments = useMemo(() => {
+    return paymentsList.filter((p) => p.status === 'rejected');
+  }, [paymentsList]);
+
+  const filteredPayments = useMemo(() => {
+    return paymentsList.filter((p) => {
+      if (paymentFilter !== 'all' && p.status !== paymentFilter) return false;
+      if (!paymentSearchQuery.trim()) return true;
+      const q = paymentSearchQuery.toLowerCase();
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-purple-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold font-mono shadow-sm">
-          <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
-          <span>VIP Sans Pub (5$)</span>
-        </span>
+        (p.targetEmail || '').toLowerCase().includes(q) ||
+        (p.senderPhone || '').toLowerCase().includes(q) ||
+        (p.transactionRef || '').toLowerCase().includes(q) ||
+        (p.userName || '').toLowerCase().includes(q)
+      );
+    });
+  }, [paymentsList, paymentFilter, paymentSearchQuery]);
+
+  // Helper to render subscription badge with real-time expiration tracking
+  const renderSubscriptionBadge = (plan?: 'free' | 'premium', expiresAt?: number | null) => {
+    if (plan === 'premium') {
+      const isExpired = expiresAt ? Date.now() > expiresAt : false;
+      const daysLeft = expiresAt ? Math.max(0, Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24))) : null;
+
+      if (isExpired && expiresAt) {
+        return (
+          <div className="space-y-0.5">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-950/80 text-rose-300 border border-rose-500/50 text-[10px] font-bold font-mono">
+              <AlertTriangle className="w-3 h-3 text-rose-400" />
+              <span>VIP Expiré</span>
+            </span>
+            <span className="text-[9px] text-rose-400/90 font-mono block">
+              le {new Date(expiresAt).toLocaleDateString('fr-FR')}
+            </span>
+          </div>
+        );
+      }
+
+      return (
+        <div className="space-y-0.5">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-purple-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold font-mono shadow-sm">
+            <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
+            <span>VIP Sans Pub (5$)</span>
+          </span>
+          {daysLeft !== null && (
+            <span className={`text-[10px] font-mono block ${daysLeft <= 3 ? 'text-amber-400 font-bold animate-pulse' : 'text-emerald-400'}`}>
+              {daysLeft} jour{daysLeft > 1 ? 's' : ''} restant{daysLeft > 1 ? 's' : ''} (jusqu'au {new Date(expiresAt!).toLocaleDateString('fr-FR')})
+            </span>
+          )}
+        </div>
       );
     }
     return (
@@ -324,6 +417,7 @@ export default function AdminPage() {
       </span>
     );
   };
+
 
   // Filtered all users with subscription filter
   const filteredAllUsers = usersList.filter((u) => {
@@ -403,6 +497,40 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* Airtel Mobile Money Payments Counter */}
+          <div
+            onClick={() => setActiveTab('payments')}
+            className={`px-3 py-2 rounded-xl glass border cursor-pointer transition shadow-sm ${
+              pendingPayments.length > 0
+                ? 'border-red-500/50 bg-red-950/30 ring-1 ring-red-500/40'
+                : 'border-amber-500/30 bg-amber-950/20'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                pendingPayments.length > 0 ? 'bg-red-500/25 text-red-300' : 'bg-amber-500/20 text-amber-400'
+              }`}>
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[9px] text-amber-300/90 block font-bold leading-tight uppercase truncate">
+                  Paiements Airtel
+                </span>
+                <div className="flex items-baseline gap-1">
+                  {pendingPayments.length > 0 ? (
+                    <span className="text-xs font-black text-red-300 animate-pulse font-mono">
+                      {pendingPayments.length} à valider !
+                    </span>
+                  ) : (
+                    <span className="text-sm font-black text-amber-300">
+                      {approvedPayments.length} validés
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* VIP Premium Subscribers */}
           <div className="px-3 py-2 rounded-xl glass border border-amber-500/30 bg-amber-950/20 flex items-center gap-2 shadow-sm">
             <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0">
@@ -411,17 +539,6 @@ export default function AdminPage() {
             <div>
               <span className="text-[9px] text-amber-300/80 block font-bold leading-tight uppercase">VIP 5$/m</span>
               <span className="text-sm font-black text-amber-300">{premiumCount}</span>
-            </div>
-          </div>
-
-          {/* Free Subscribers */}
-          <div className="px-3 py-2 rounded-xl glass border border-white/10 flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0">
-              <Tv className="w-4 h-4 text-cyan-300" />
-            </div>
-            <div>
-              <span className="text-[9px] text-white/50 block font-bold leading-tight uppercase">Gratuits</span>
-              <span className="text-sm font-black text-white">{freeCount}</span>
             </div>
           </div>
 
@@ -469,6 +586,27 @@ export default function AdminPage() {
           </button>
 
           <button
+            onClick={() => setActiveTab('payments')}
+            className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap flex-shrink-0 cursor-pointer ${
+              activeTab === 'payments'
+                ? 'bg-gradient-to-r from-red-600 via-amber-600 to-orange-500 text-white shadow-lg shadow-red-600/30'
+                : 'text-white/60 hover:text-white'
+            }`}
+          >
+            <CreditCard className="w-4 h-4 text-amber-400" />
+            <span>Paiements Airtel (+242)</span>
+            {pendingPayments.length > 0 ? (
+              <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-mono font-black animate-pulse shadow-md">
+                {pendingPayments.length} à valider
+              </span>
+            ) : (
+              <span className="px-1.5 py-0.5 rounded-md bg-white/10 text-white/70 text-[10px] font-mono">
+                {paymentsList.length}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab('communication')}
             className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap flex-shrink-0 cursor-pointer ${
               activeTab === 'communication'
@@ -484,6 +622,7 @@ export default function AdminPage() {
               </span>
             )}
           </button>
+
 
           <button
             onClick={() => setActiveTab('users')}
@@ -768,7 +907,7 @@ export default function AdminPage() {
                         </div>
 
                         <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
-                          <div>{renderSubscriptionBadge(u.subscriptionPlan)}</div>
+                          <div>{renderSubscriptionBadge(u.subscriptionPlan, u.subscriptionExpiresAt)}</div>
                           <span className="text-white/50 font-mono text-[10px]">
                             {u.lastLogin?.toDate ? new Date(u.lastLogin.toDate()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : 'Actif'}
                           </span>
@@ -824,7 +963,7 @@ export default function AdminPage() {
                                 </span>
                               </td>
                               <td className="p-3.5">
-                                {renderSubscriptionBadge(u.subscriptionPlan)}
+                                {renderSubscriptionBadge(u.subscriptionPlan, u.subscriptionExpiresAt)}
                               </td>
                               <td className="p-3.5 text-white/60 font-mono">
                                 {u.lastLogin?.toDate
@@ -861,8 +1000,632 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* TAB: AIRTEL MONEY PAYMENTS & SUBSCRIPTIONS */}
+      {activeTab === 'payments' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Header Banner */}
+          <div className="p-4 sm:p-6 rounded-3xl glass-strong border border-amber-500/40 bg-gradient-to-r from-red-950/60 via-[#140b24] to-amber-950/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xl">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-600 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-red-950/50 flex-shrink-0">
+                <CreditCard className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base sm:text-lg font-black text-white">
+                    Paiements & Abonnements Airtel Money
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full bg-red-950 border border-red-500/50 text-[10px] font-mono text-red-300 font-bold uppercase">
+                    +242053886817
+                  </span>
+                </div>
+                <p className="text-xs text-white/60 mt-0.5">
+                  Vérifiez les transferts reçus sur le numéro récepteur officiel, validez les abonnements 1 mois (30 jours) et gérez les expirations.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {pendingPayments.length > 0 ? (
+                <div className="px-3.5 py-1.5 rounded-xl bg-red-600/30 text-red-300 border border-red-500/50 text-xs font-mono font-bold flex items-center gap-2 animate-pulse">
+                  <span className="w-2 h-2 rounded-full bg-red-400" />
+                  <span>{pendingPayments.length} en attente de vérification</span>
+                </div>
+              ) : (
+                <div className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-mono font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Tous les paiements sont à jour</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action Toast */}
+          {adminActionToast && (
+            <div className="p-3.5 rounded-2xl bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2.5 animate-fadeIn shadow-xl">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              <span className="font-semibold">{adminActionToast}</span>
+            </div>
+          )}
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className={`p-4 rounded-2xl glass border transition ${
+              pendingPayments.length > 0 ? 'border-red-500/50 bg-red-950/20 shadow-lg shadow-red-950/30' : 'border-white/10'
+            }`}>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-white/60 font-medium uppercase text-[10px]">En Attente</span>
+                <Clock className={`w-4 h-4 ${pendingPayments.length > 0 ? 'text-red-400 animate-spin' : 'text-white/30'}`} />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className={`text-2xl sm:text-3xl font-black ${pendingPayments.length > 0 ? 'text-red-300' : 'text-white'}`}>
+                  {pendingPayments.length}
+                </span>
+                <span className="text-[10px] text-white/40">demande(s)</span>
+              </div>
+              <p className="text-[10px] text-white/50 mt-1">À vérifier sur le +242053886817</p>
+            </div>
+
+            <div className="p-4 rounded-2xl glass border border-emerald-500/30 bg-emerald-950/10">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-emerald-300/80 font-medium uppercase text-[10px]">Paiements Validés</span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl font-black text-emerald-400">
+                  {approvedPayments.length}
+                </span>
+                <span className="text-[10px] text-emerald-300/60 font-mono">abonnements</span>
+              </div>
+              <p className="text-[10px] text-white/50 mt-1">Mode Sans Pub 1 mois accordé</p>
+            </div>
+
+            <div className="p-4 rounded-2xl glass border border-amber-500/30 bg-amber-950/10">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-amber-300/80 font-medium uppercase text-[10px]">Revenus Collectés</span>
+                <DollarSign className="w-4 h-4 text-amber-400" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl font-black text-amber-300 font-mono">
+                  {approvedPayments.length * 5}$
+                </span>
+                <span className="text-[11px] text-amber-300/70 font-mono font-bold">
+                  ({(approvedPayments.length * 3000).toLocaleString('fr-FR')} FCFA)
+                </span>
+              </div>
+              <p className="text-[10px] text-white/50 mt-1">Totalité des encaissements Mobile Money</p>
+            </div>
+
+            <div className="p-4 rounded-2xl glass border border-purple-500/30 bg-purple-950/10">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-purple-300/80 font-medium uppercase text-[10px]">Abonnés VIP Actifs</span>
+                <Sparkles className="w-4 h-4 text-purple-400" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl font-black text-purple-300">
+                  {premiumCount}
+                </span>
+                <span className="text-[10px] text-purple-300/60 font-mono">comptes</span>
+              </div>
+              <p className="text-[10px] text-white/50 mt-1">Comptes sans pub actuellement</p>
+            </div>
+          </div>
+
+          {/* SECTION 1: PENDING PAYMENTS (URGENT VALIDATION) */}
+          <div className="p-5 sm:p-6 rounded-3xl glass-strong border border-amber-500/40 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
+                <h4 className="text-sm sm:text-base font-black text-white">
+                  Demandes de Paiement En Attente de Validation ({pendingPayments.length})
+                </h4>
+              </div>
+              <span className="text-[11px] text-white/50 font-mono">Priorité Haute</span>
+            </div>
+
+            {pendingPayments.length === 0 ? (
+              <div className="py-8 text-center rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400/60 mx-auto" />
+                <p className="text-xs font-semibold text-white/70">
+                  Aucun paiement en attente.
+                </p>
+                <p className="text-[11px] text-white/40">
+                  Dès qu'un client soumet une confirmation de transfert Airtel Money, elle s'affichera ici en temps réel.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingPayments.map((p) => {
+                  const isLoading = actionLoadingId === p.id;
+                  return (
+                    <div
+                      key={p.id}
+                      className="p-5 rounded-2xl bg-gradient-to-br from-red-950/40 via-black to-amber-950/30 border border-red-500/50 space-y-4 shadow-xl relative overflow-hidden"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40 text-[10px] font-mono font-bold uppercase">
+                            EN ATTENTE DE VÉRIFICATION
+                          </span>
+                          <h5 className="text-sm font-black text-white mt-2">{p.targetEmail}</h5>
+                          <span className="text-[11px] text-white/50">{p.userName || 'Client NOVASTREAM'}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-base font-black text-amber-300 font-mono block">
+                            5,00 $ (3 000 FCFA)
+                          </span>
+                          <span className="text-[10px] text-white/40 font-mono">1 Mois Sans Pub</span>
+                        </div>
+                      </div>
+
+                      {/* Payment Details Box */}
+                      <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2 text-xs font-mono">
+                        <div className="flex items-center justify-between">
+                          <span className="text-white/50">N° Expéditeur Airtel :</span>
+                          <div className="flex items-center gap-1.5">
+                            <strong className="text-amber-300">{p.senderPhone}</strong>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(p.senderPhone);
+                                setCopiedRef(`phone-${p.id}`);
+                                setTimeout(() => setCopiedRef(null), 2000);
+                              }}
+                              className="p-1 rounded bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition cursor-pointer"
+                              title="Copier le numéro"
+                            >
+                              {copiedRef === `phone-${p.id}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-white/50">N° Récepteur :</span>
+                          <span className="text-white font-bold">+242053886817</span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-white/50">ID / Réf SMS Airtel :</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-white/90 font-bold">{p.transactionRef}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(p.transactionRef);
+                                setCopiedRef(`ref-${p.id}`);
+                                setTimeout(() => setCopiedRef(null), 2000);
+                              }}
+                              className="p-1 rounded bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition cursor-pointer"
+                              title="Copier la référence de transaction"
+                            >
+                              {copiedRef === `ref-${p.id}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-white/10 pt-1.5 text-[11px]">
+                          <span className="text-white/40">Soumis le :</span>
+                          <span className="text-white/60">
+                            {p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleString('fr-FR') : 'Récemment'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons: 1-Click Validation & Reject */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          disabled={isLoading}
+                          onClick={async () => {
+                            if (!p.id) return;
+                            setActionLoadingId(p.id);
+                            try {
+                              const res = await approvePayment(p.id, p.targetEmail, 30, user?.email || 'cyber.kan587@gmail.com');
+                              setAdminActionToast(`🎉 Paiement validé pour ${p.targetEmail} ! Abonnement 1 mois actif jusqu'au ${new Date(res.expiresAt).toLocaleDateString('fr-FR')}.`);
+                              setTimeout(() => setAdminActionToast(null), 5000);
+                            } catch (err: any) {
+                              setAdminActionToast(`Erreur : ${err?.message || 'Échec de validation'}`);
+                              setTimeout(() => setAdminActionToast(null), 5000);
+                            } finally {
+                              setActionLoadingId(null);
+                            }
+                          }}
+                          className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-extrabold text-xs transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>{isLoading ? 'Validation...' : 'Valider & Activer (30j)'}</span>
+                        </button>
+
+                        <button
+                          disabled={isLoading}
+                          onClick={() => {
+                            setRejectModal({
+                              open: true,
+                              payment: p,
+                              reason: 'Fonds non reçus sur le compte Airtel Money (+242053886817)'
+                            });
+                          }}
+                          className="py-2.5 px-3 rounded-xl bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <XCircle className="w-4 h-4" />
+                          <span>Refuser</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* SECTION 2: MANUAL ACTIVATION / EXTENSION BY ADMIN */}
+          <div className="p-5 sm:p-6 rounded-3xl glass-strong border border-white/10 space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Activation ou Prolongation Manuelle par l'Administrateur</span>
+                </h4>
+                <p className="text-xs text-white/50 mt-0.5">
+                  Attribuez ou prolongez manuellement un abonnement VIP Sans Pub pour n'importe quel compte client.
+                </p>
+              </div>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!manualTargetEmail.trim()) return;
+                setActionLoadingId('manual-submit');
+                try {
+                  const res = await setManualSubscription(manualTargetEmail.trim(), manualPlanChoice, manualDurationDays);
+                  setAdminActionToast(
+                    manualPlanChoice === 'premium'
+                      ? `Compte ${manualTargetEmail} passé en Premium Sans Pub pour ${manualDurationDays} jours (jusqu'au ${res.expiresAt ? new Date(res.expiresAt).toLocaleDateString('fr-FR') : ''}) !`
+                      : `Compte ${manualTargetEmail} rétrogradé sur le plan Gratuit.`
+                  );
+                  setManualTargetEmail('');
+                  setTimeout(() => setAdminActionToast(null), 5000);
+                } catch (err: any) {
+                  setAdminActionToast(`Erreur : ${err?.message || 'Échec de la mise à jour'}`);
+                  setTimeout(() => setAdminActionToast(null), 5000);
+                } finally {
+                  setActionLoadingId(null);
+                }
+              }}
+              className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1"
+            >
+              <div className="sm:col-span-2 space-y-1">
+                <label className="text-[11px] text-white/70 block font-semibold">Email du compte client :</label>
+                <input
+                  type="email"
+                  value={manualTargetEmail}
+                  onChange={(e) => setManualTargetEmail(e.target.value)}
+                  placeholder="client@gmail.com"
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-xs text-white placeholder-white/30 font-mono focus:outline-none focus:border-amber-400 transition"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] text-white/70 block font-semibold">Durée :</label>
+                <select
+                  value={manualDurationDays}
+                  onChange={(e) => setManualDurationDays(Number(e.target.value))}
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#0e0e29] border border-white/15 text-xs text-white focus:outline-none focus:border-amber-400 transition cursor-pointer"
+                >
+                  <option value={30}>1 Mois (30 jours)</option>
+                  <option value={60}>2 Mois (60 jours)</option>
+                  <option value={90}>3 Mois (90 jours)</option>
+                  <option value={180}>6 Mois (180 jours)</option>
+                  <option value={365}>1 An (365 jours)</option>
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  disabled={actionLoadingId === 'manual-submit'}
+                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs transition shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{actionLoadingId === 'manual-submit' ? 'Enregistrement...' : 'Activer / Prolonger'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* SECTION 3: PAYMENTS HISTORY TABLE */}
+          <div className="p-5 sm:p-6 rounded-3xl glass-strong border border-white/10 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-cyan-400" />
+                  <span>Historique des Transactions Mobile Money</span>
+                </h4>
+                <p className="text-xs text-white/50">Toutes les demandes de paiement enregistrées dans Firestore.</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40" />
+                  <input
+                    type="text"
+                    value={paymentSearchQuery}
+                    onChange={(e) => setPaymentSearchQuery(e.target.value)}
+                    placeholder="Filtrer par email, tel ou réf..."
+                    className="pl-8 pr-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-white/30 focus:outline-none focus:border-cyan-400 transition font-mono w-48 sm:w-60"
+                  />
+                </div>
+
+                <select
+                  value={paymentFilter}
+                  onChange={(e) => setPaymentFilter(e.target.value as any)}
+                  className="px-3 py-1.5 rounded-xl bg-[#0e0e29] border border-white/10 text-xs text-white focus:outline-none cursor-pointer"
+                >
+                  <option value="all">Tous ({paymentsList.length})</option>
+                  <option value="pending">En attente ({pendingPayments.length})</option>
+                  <option value="approved">Validés ({approvedPayments.length})</option>
+                  <option value="rejected">Rejetés ({rejectedPayments.length})</option>
+                </select>
+              </div>
+            </div>
+
+            {filteredPayments.length === 0 ? (
+              <div className="py-12 text-center rounded-2xl bg-white/[0.02] border border-white/5">
+                <CreditCard className="w-8 h-8 text-white/20 mx-auto mb-2" />
+                <p className="text-xs font-semibold text-white/60">Aucune transaction trouvée.</p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile Cards View (< md) */}
+                <div className="block md:hidden space-y-3">
+                  {filteredPayments.map((p) => (
+                    <div key={p.id} className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 space-y-2.5 text-xs font-mono">
+                      <div className="flex items-center justify-between">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                          p.status === 'approved'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                            : p.status === 'rejected'
+                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        }`}>
+                          {p.status === 'approved' ? 'VALIDÉ' : p.status === 'rejected' ? 'REJETÉ' : 'EN ATTENTE'}
+                        </span>
+                        <span className="text-amber-300 font-bold">{p.amount || '5,00 $ (3 000 FCFA)'}</span>
+                      </div>
+
+                      <div className="text-white font-bold">{p.targetEmail}</div>
+                      <div className="text-white/60 text-[11px] flex justify-between">
+                        <span>Expéditeur : {p.senderPhone}</span>
+                        <span>Réf : {p.transactionRef}</span>
+                      </div>
+                      <div className="text-white/40 text-[10px] flex justify-between border-t border-white/5 pt-1.5">
+                        <span>{p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleDateString('fr-FR') : 'Date récente'}</span>
+                        {p.approvedBy && <span>Validé par : {p.approvedBy}</span>}
+                        {p.rejectionReason && <span className="text-rose-300">Raison : {p.rejectionReason}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table View (>= md) */}
+                <div className="hidden md:block rounded-2xl border border-white/10 overflow-hidden bg-black/20">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                      <tr className="border-b border-white/10 bg-white/5 text-[11px] font-mono font-bold text-white/60">
+                        <th className="p-3.5">Date</th>
+                        <th className="p-3.5">Compte Client</th>
+                        <th className="p-3.5">N° Expéditeur</th>
+                        <th className="p-3.5">Réf Transaction</th>
+                        <th className="p-3.5">Montant</th>
+                        <th className="p-3.5">Statut</th>
+                        <th className="p-3.5">Détails / Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 text-xs font-mono">
+                      {filteredPayments.map((p) => (
+                        <tr key={p.id} className="hover:bg-white/[0.02] transition">
+                          <td className="p-3.5 text-white/60">
+                            {p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleDateString('fr-FR') : 'Récemment'}
+                          </td>
+                          <td className="p-3.5 font-bold text-white">{p.targetEmail}</td>
+                          <td className="p-3.5 text-amber-300">{p.senderPhone}</td>
+                          <td className="p-3.5 text-white/80">{p.transactionRef}</td>
+                          <td className="p-3.5 text-white font-bold">{p.amount || '5,00 $'}</td>
+                          <td className="p-3.5">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                              p.status === 'approved'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                : p.status === 'rejected'
+                                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                            }`}>
+                              {p.status === 'approved' ? 'VALIDÉ' : p.status === 'rejected' ? 'REJETÉ' : 'EN ATTENTE'}
+                            </span>
+                          </td>
+                          <td className="p-3.5">
+                            {p.status === 'pending' ? (
+                              <button
+                                onClick={async () => {
+                                  if (!p.id) return;
+                                  setActionLoadingId(p.id);
+                                  try {
+                                    const res = await approvePayment(p.id, p.targetEmail, 30, user?.email || 'cyber.kan587@gmail.com');
+                                    setAdminActionToast(`Paiement validé pour ${p.targetEmail} ! VIP actif jusqu'au ${new Date(res.expiresAt).toLocaleDateString('fr-FR')}.`);
+                                    setTimeout(() => setAdminActionToast(null), 5000);
+                                  } finally {
+                                    setActionLoadingId(null);
+                                  }
+                                }}
+                                className="px-3 py-1 rounded-lg bg-emerald-500 text-black font-bold text-[11px] hover:bg-emerald-400 transition cursor-pointer"
+                              >
+                                Valider 30j
+                              </button>
+                            ) : p.status === 'approved' ? (
+                              <span className="text-[10px] text-white/50">
+                                {p.expiresAt ? `Expire le ${new Date(p.expiresAt).toLocaleDateString('fr-FR')}` : 'Actif'}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-rose-300 truncate max-w-[150px] block" title={p.rejectionReason}>
+                                {p.rejectionReason || 'Rejeté'}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* SECTION 4: SUBSCRIBERS EXPIRATION MONITORING */}
+          <div className="p-5 sm:p-6 rounded-3xl glass-strong border border-white/10 space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-purple-400" />
+                  <span>Suivi des Expirations des Comptes Abonnés</span>
+                </h4>
+                <p className="text-xs text-white/50">
+                  Statut de l'abonnement en temps réel : jours restants, alertes d'expiration automatique et prolongation en 1 clic.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {usersList.map((u) => {
+                const isPremium = u.subscriptionPlan === 'premium';
+                const expiresAt = u.subscriptionExpiresAt;
+                const isExpired = expiresAt ? Date.now() > expiresAt : false;
+                const daysRemaining = expiresAt ? Math.max(0, Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24))) : null;
+
+                return (
+                  <div
+                    key={u.uid}
+                    className={`p-4 rounded-2xl border space-y-3 transition ${
+                      isPremium && !isExpired
+                        ? 'bg-amber-950/20 border-amber-500/40 shadow-sm'
+                        : isExpired
+                        ? 'bg-rose-950/20 border-rose-500/30'
+                        : 'bg-white/[0.03] border-white/5'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="font-bold text-white text-xs truncate block">{u.name || 'Utilisateur'}</span>
+                        <span className="text-[11px] text-white/50 font-mono truncate block">{u.email}</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold flex-shrink-0 ${
+                        isPremium && !isExpired
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                          : isExpired
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                          : 'bg-white/10 text-white/50'
+                      }`}>
+                        {isPremium && !isExpired ? 'VIP ACTIF' : isExpired ? 'EXPIRÉ' : 'GRATUIT'}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 text-[11px] font-mono space-y-1">
+                      {isPremium && !isExpired && expiresAt && (
+                        <div className="flex justify-between items-center text-emerald-300">
+                          <span>Temps restant :</span>
+                          <strong>{daysRemaining} jours ({new Date(expiresAt).toLocaleDateString('fr-FR')})</strong>
+                        </div>
+                      )}
+                      {isExpired && expiresAt && (
+                        <div className="flex justify-between items-center text-rose-300">
+                          <span>Expiré le :</span>
+                          <span>{new Date(expiresAt).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                      )}
+                      {!isPremium && !isExpired && (
+                        <div className="text-white/40">
+                          Abonnement standard avec publicité
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={async () => {
+                          setActionLoadingId(`extend-${u.uid}`);
+                          try {
+                            const res = await setManualSubscription(u.email, 'premium', 30, u.uid);
+                            setAdminActionToast(`Abonnement prolongé de 30 jours pour ${u.email} (jusqu'au ${res.expiresAt ? new Date(res.expiresAt).toLocaleDateString('fr-FR') : ''}) !`);
+                            setTimeout(() => setAdminActionToast(null), 5000);
+                          } catch (err: any) {
+                            setAdminActionToast(`Erreur : ${err?.message || 'Action échouée'}`);
+                            setTimeout(() => setAdminActionToast(null), 5000);
+                          } finally {
+                            setActionLoadingId(null);
+                          }
+                        }}
+                        disabled={actionLoadingId === `extend-${u.uid}`}
+                        className="flex-1 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-[11px] transition cursor-pointer flex items-center justify-center gap-1 disabled:opacity-50"
+                      >
+                        <Sparkles className="w-3 h-3 text-amber-400" />
+                        <span>{actionLoadingId === `extend-${u.uid}` ? 'En cours...' : '+30 jours'}</span>
+                      </button>
+
+                      {(isPremium || !!expiresAt || u.subscriptionPlan === 'premium') && (
+                        confirmDowngradeUid === u.uid ? (
+                          <div className="flex items-center gap-1.5 animate-fadeIn">
+                            <button
+                              disabled={actionLoadingId === `downgrade-${u.uid}`}
+                              onClick={async () => {
+                                setActionLoadingId(`downgrade-${u.uid}`);
+                                try {
+                                  await setManualSubscription(u.email, 'free', 0, u.uid);
+                                  setAdminActionToast(`Compte ${u.email} rétabli avec succès sur le plan Gratuit (avec pub).`);
+                                  setConfirmDowngradeUid(null);
+                                  setTimeout(() => setAdminActionToast(null), 5000);
+                                } catch (err: any) {
+                                  setAdminActionToast(`Erreur : ${err?.message || 'Échec de réinitialisation'}`);
+                                  setTimeout(() => setAdminActionToast(null), 5000);
+                                } finally {
+                                  setActionLoadingId(null);
+                                }
+                              }}
+                              className="py-1.5 px-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] border border-rose-400/40 transition cursor-pointer flex items-center gap-1 disabled:opacity-50 shadow-md shadow-rose-900/40"
+                              title="Confirmer la rétrogradation"
+                            >
+                              <CheckCircle2 className="w-3 h-3 text-white" />
+                              <span>{actionLoadingId === `downgrade-${u.uid}` ? 'En cours...' : 'Confirmer ?'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={actionLoadingId === `downgrade-${u.uid}`}
+                              onClick={() => setConfirmDowngradeUid(null)}
+                              className="py-1.5 px-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-[11px] border border-white/10 transition cursor-pointer"
+                              title="Annuler"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={actionLoadingId === `downgrade-${u.uid}`}
+                            onClick={() => setConfirmDowngradeUid(u.uid)}
+                            className="py-1.5 px-3 rounded-xl bg-white/5 hover:bg-rose-500/20 text-white/60 hover:text-rose-300 border border-white/10 hover:border-rose-500/30 text-[11px] transition cursor-pointer font-medium"
+                            title="Rétablir le compte sur le plan standard gratuit avec pub"
+                          >
+                            Rétablir Gratuit
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TAB 2: ALL REGISTERED USERS & LOGS */}
       {activeTab === 'users' && (
+
         <div className="space-y-4 animate-fadeIn">
           {/* Search bar & Subscription filter */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
@@ -934,7 +1697,7 @@ export default function AdminPage() {
                       </div>
 
                       <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
-                        <div>{renderSubscriptionBadge(u.subscriptionPlan)}</div>
+                        <div>{renderSubscriptionBadge(u.subscriptionPlan, u.subscriptionExpiresAt)}</div>
                         {isOnlineToday ? (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold">
                             Actif aujourd'hui
@@ -993,7 +1756,7 @@ export default function AdminPage() {
                               </span>
                             </td>
                             <td className="p-4">
-                              {renderSubscriptionBadge(u.subscriptionPlan)}
+                              {renderSubscriptionBadge(u.subscriptionPlan, u.subscriptionExpiresAt)}
                             </td>
                             <td className="p-4 text-white/40 font-mono text-[11px]">{u.uid}</td>
                             <td className="p-4 text-white/60 font-mono">
@@ -1131,30 +1894,159 @@ export default function AdminPage() {
       {/* TAB 4: NOTIFICATIONS */}
       {activeTab === 'notifications' && (
         <div className="space-y-4 animate-fadeIn">
+          {/* Header Actions */}
+          <div className="p-4 sm:p-5 rounded-3xl glass-strong border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-amber-950/40 via-[#0c0c26] to-orange-950/40">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-300 flex items-center justify-center border border-amber-500/30">
+                <Bell className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-white">Centre de Notifications Admin</h3>
+                <p className="text-xs text-white/60">
+                  {notifications.filter(n => !n.read).length} non lue(s) sur {notifications.length} au total. Le compteur diminue jusqu'à zéro une fois lues.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {notifications.some(n => !n.read) && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await markAllNotificationsAsRead();
+                      setAdminActionToast('Toutes les notifications ont été marquées comme lues !');
+                      setTimeout(() => setAdminActionToast(null), 4000);
+                    } catch (err: any) {
+                      setAdminActionToast(`Erreur : ${err?.message || 'Échec'}`);
+                      setTimeout(() => setAdminActionToast(null), 4000);
+                    }
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:brightness-110 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                  <span>Tout marquer comme lu (0 non lue)</span>
+                </button>
+              )}
+
+              {notifications.length > 0 && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await deleteAllReadNotifications();
+                      setAdminActionToast('Notifications lues supprimées avec succès.');
+                      setTimeout(() => setAdminActionToast(null), 4000);
+                    } catch (err: any) {
+                      setAdminActionToast(`Erreur : ${err?.message || 'Échec'}`);
+                      setTimeout(() => setAdminActionToast(null), 4000);
+                    }
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-semibold transition border border-white/10 cursor-pointer"
+                >
+                  Supprimer les lues
+                </button>
+              )}
+            </div>
+          </div>
+
           {notifications.length === 0 ? (
             <div className="py-20 text-center rounded-3xl glass border border-white/10">
               <Bell className="w-12 h-12 text-white/20 mx-auto mb-3" />
               <h3 className="text-base font-bold text-white">Aucune notification</h3>
-              <p className="text-xs text-white/50">Les nouvelles connexions d'abonnés apparaîtront ici.</p>
+              <p className="text-xs text-white/50">Les nouvelles connexions et paiements d'abonnés apparaîtront ici.</p>
             </div>
           ) : (
             <div className="space-y-3">
               {notifications.map((n) => (
                 <div
                   key={n.id}
-                  className={`p-4 rounded-2xl border ${n.read ? 'bg-white/5 border-white/5' : 'bg-amber-950/20 border-amber-500/30'}`}
+                  onClick={async () => {
+                    if (!n.read) {
+                      try {
+                        await markNotificationAsRead(n.id);
+                      } catch (e) {
+                        console.error(e);
+                      }
+                    }
+                  }}
+                  className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer ${
+                    n.read ? 'bg-white/[0.03] border-white/5 opacity-75' : 'bg-amber-950/30 border-amber-500/40 shadow-lg shadow-amber-950/20'
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center">
-                      <Users className="w-4 h-4" />
+                  <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                      n.read ? 'bg-white/10 text-white/50' : 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
+                    }`}>
+                      {n.type === 'payment_pending' || n.type === 'payment_approved' ? <CreditCard className="w-4 h-4" /> : <Users className="w-4 h-4" />}
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-white">Nouvel Abonné</h4>
-                      <p className="text-xs text-white/70">{n.userName} ({n.userEmail}) vient de s'inscrire !</p>
+
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase border ${
+                          n.read ? 'bg-white/10 text-white/50 border-white/10' : 'bg-amber-500/20 text-amber-300 border-amber-500/30 animate-pulse'
+                        }`}>
+                          {n.read ? 'LUE' : 'NON LUE'}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-white/5 border border-white/10 text-white/70">
+                          {n.type}
+                        </span>
+                        <h4 className="text-xs sm:text-sm font-bold text-white truncate">
+                          {n.title || (n.type === 'new_user' ? 'Nouvel Abonné' : 'Notification Airtel Money')}
+                        </h4>
+                      </div>
+
+                      <p className="text-xs text-white/80 leading-relaxed">
+                        {n.message || `${n.userName || 'Client'} (${n.userEmail}) vient de s'inscrire ou d'effectuer une action.`}
+                      </p>
+
+                      <div className="flex items-center gap-3 text-[10px] text-white/40 font-mono pt-1">
+                        <span>{n.timestamp?.toDate ? new Date(n.timestamp.toDate()).toLocaleString('fr-FR') : 'Récemment'}</span>
+                      </div>
                     </div>
-                    <span className="text-[10px] text-white/40 ml-auto font-mono">
-                      {n.timestamp?.toDate ? new Date(n.timestamp.toDate()).toLocaleString() : 'Récemment'}
-                    </span>
+                  </div>
+
+                  {/* Notification Action Buttons */}
+                  <div className="flex items-center gap-2 flex-shrink-0 self-end md:self-center">
+                    {!n.read ? (
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await markNotificationAsRead(n.id);
+                          } catch (err) {
+                            console.error(err);
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                        title="Marquer comme lu (réduit le compteur)"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Marquer comme lu</span>
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-950/40 border border-emerald-500/30">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Lu</span>
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          await deleteNotification(n.id);
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }}
+                      className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition cursor-pointer"
+                      title="Supprimer la notification"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1507,6 +2399,123 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* Rejection Modal */}
+      {rejectModal.open && rejectModal.payment && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="glass-strong rounded-3xl p-6 max-w-md w-full border border-rose-500/40 space-y-4 shadow-2xl relative">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2 text-rose-400 font-bold text-sm">
+                <XCircle className="w-5 h-5" />
+                <span>Refuser le Paiement Airtel Money</span>
+              </div>
+              <button
+                onClick={() => setRejectModal({ open: false, payment: null, reason: '' })}
+                className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-white/50 hover:text-white flex items-center justify-center transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 space-y-1.5 text-xs font-mono">
+              <div className="flex justify-between">
+                <span className="text-white/50">Compte :</span>
+                <span className="text-white font-bold">{rejectModal.payment.targetEmail}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/50">N° Expéditeur :</span>
+                <span className="text-amber-300">{rejectModal.payment.senderPhone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/50">Réf SMS :</span>
+                <span className="text-white/80">{rejectModal.payment.transactionRef}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-white/80 block">Motif du refus :</label>
+              <select
+                value={rejectModal.reason}
+                onChange={(e) => setRejectModal((prev) => ({ ...prev, reason: e.target.value }))}
+                className="w-full px-3 py-2 rounded-xl bg-[#0e0e29] border border-white/15 text-xs text-white focus:outline-none focus:border-rose-400 transition cursor-pointer"
+              >
+                <option value="Fonds non reçus sur le compte Airtel Money (+242053886817)">
+                  Fonds non reçus sur le compte Airtel Money (+242053886817)
+                </option>
+                <option value="Référence de transaction introuvable ou incorrecte">
+                  Référence de transaction introuvable ou incorrecte
+                </option>
+                <option value="Montant envoyé inférieur à 3 000 FCFA (5,00 $)">
+                  Montant envoyé inférieur à 3 000 FCFA (5,00 $)
+                </option>
+                <option value="Numéro expéditeur non identifié">
+                  Numéro expéditeur non identifié
+                </option>
+              </select>
+
+              <textarea
+                value={rejectModal.reason}
+                onChange={(e) => setRejectModal((prev) => ({ ...prev, reason: e.target.value }))}
+                rows={2}
+                placeholder="Précisez le motif..."
+                className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-xs text-white placeholder-white/30 font-mono focus:outline-none focus:border-rose-400 transition resize-none"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setRejectModal({ open: false, payment: null, reason: '' })}
+                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs font-semibold transition border border-white/10 cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!rejectModal.payment?.id) return;
+                  try {
+                    await rejectPayment(
+                      rejectModal.payment.id,
+                      rejectModal.payment.targetEmail,
+                      rejectModal.reason,
+                      user?.email || 'cyber.kan587@gmail.com'
+                    );
+                    setAdminActionToast(`Paiement refusé pour ${rejectModal.payment.targetEmail}.`);
+                    setTimeout(() => setAdminActionToast(null), 4000);
+                  } catch (err: any) {
+                    setAdminActionToast(`Erreur : ${err?.message || 'Échec du refus'}`);
+                    setTimeout(() => setAdminActionToast(null), 5000);
+                  } finally {
+                    setRejectModal({ open: false, payment: null, reason: '' });
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs transition shadow-lg shadow-rose-600/30 cursor-pointer"
+              >
+                Confirmer le Refus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Action Toast for instant feedback anywhere on the page */}
+      {adminActionToast && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm sm:max-w-md p-4 rounded-2xl bg-black/95 backdrop-blur-xl border border-emerald-500/50 shadow-2xl shadow-emerald-950/60 text-white text-xs flex items-center gap-3 animate-fadeIn">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0 text-emerald-400">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <span className="font-semibold text-emerald-200 flex-1 leading-snug">{adminActionToast}</span>
+          <button
+            type="button"
+            onClick={() => setAdminActionToast(null)}
+            className="p-1.5 text-white/40 hover:text-white rounded-lg hover:bg-white/10 transition cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Home,
@@ -27,6 +27,7 @@ import { NovaLogo } from '../common/NovaLogo';
 import { AuthWidget } from '../auth/AuthWidget';
 import { FeedbackModal } from '../feedback/FeedbackModal';
 import { ShareAppModal } from '../common/ShareAppModal';
+import { subscribeToUnreadNotificationsCount } from '../../services/notificationService';
 
 const navItems = [
   { to: '/', icon: Home, label: 'Accueil' },
@@ -57,6 +58,18 @@ export function Sidebar({
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [adminUnreadCount, setAdminUnreadCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setAdminUnreadCount(0);
+      return;
+    }
+    const unsub = subscribeToUnreadNotificationsCount((count) => {
+      setAdminUnreadCount(count);
+    });
+    return () => unsub();
+  }, [isAdmin]);
 
   // Controlled or local state
   const isCollapsed = externalCollapsed !== undefined ? externalCollapsed : internalCollapsed;
@@ -141,9 +154,16 @@ export function Sidebar({
                 </span>
               )}
               {!isCollapsed && itemIsAdmin && (
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40">
-                  ADMIN
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {adminUnreadCount > 0 && (
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full font-black bg-red-500 text-white animate-pulse shadow-md">
+                      {adminUnreadCount}
+                    </span>
+                  )}
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                    ADMIN
+                  </span>
+                </div>
               )}
               {!isCollapsed && isVpn && vpnEnabled && (
                 <span className="text-[10px] leading-none" title={vpnServer.country}>
