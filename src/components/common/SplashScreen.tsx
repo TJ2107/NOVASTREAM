@@ -44,7 +44,8 @@ export function SplashScreen({ onComplete }: SplashProps) {
       initial={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 1.03 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="fixed inset-0 z-50 bg-[#020205] flex flex-col items-center justify-center p-3 sm:p-6 overflow-hidden select-none"
+      className="fixed inset-0 z-50 bg-[#020205] flex flex-col items-center justify-center p-3 sm:p-6 overflow-hidden select-none cursor-pointer"
+      onClick={() => onCompleteRef.current?.()}
     >
       {/* Background radial glow & atmosphere */}
       <div className="absolute w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[#E50914]/25 via-purple-700/15 to-cyan-500/10 blur-[140px] pointer-events-none animate-pulse" />
@@ -167,14 +168,22 @@ export function SplashScreen({ onComplete }: SplashProps) {
         </div>
       </div>
 
-      {/* Skip button for convenience */}
-      <button
-        onClick={() => onCompleteRef.current?.()}
-        className="absolute bottom-4 right-4 sm:bottom-8 sm:right-8 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl glass text-white/50 hover:text-white hover:border-white/30 text-[11px] sm:text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
-      >
-        <span>Passer</span>
-        <span>→</span>
-      </button>
+      {/* Tap anywhere or skip button for instant access */}
+      <div className="absolute bottom-4 left-0 right-0 px-4 flex items-center justify-between pointer-events-auto">
+        <span className="text-[10px] sm:text-xs text-white/40 font-mono">
+          Toucher l'écran pour passer
+        </span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onCompleteRef.current?.();
+          }}
+          className="px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/30 text-white text-xs font-bold transition shadow-lg cursor-pointer flex items-center gap-1.5 active:scale-95"
+        >
+          <span>Passer</span>
+          <span>→</span>
+        </button>
+      </div>
     </motion.div>
   );
 }

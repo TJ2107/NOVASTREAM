@@ -21,19 +21,20 @@ import { AuthWidget } from './components/auth/AuthWidget';
 import { UserTour } from './components/common/UserTour';
 import { InterstitialAdModal } from './components/common/InterstitialAdModal';
 import { AdminAnnouncementBanner } from './components/common/AdminAnnouncementBanner';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
-const Home = lazy(() => import('./pages/Home'));
-const LiveTV = lazy(() => import('./pages/LiveTV'));
-const Movies = lazy(() => import('./pages/Movies'));
-const Series = lazy(() => import('./pages/Series'));
-const RadioPage = lazy(() => import('./pages/Radio'));
-const Library = lazy(() => import('./pages/Library'));
-const PortalBrowser = lazy(() => import('./pages/PortalBrowser'));
-const VPNPage = lazy(() => import('./pages/VPNPage'));
-const DuoPage = lazy(() => import('./pages/DuoPage'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
-const MultiViewPage = lazy(() => import('./pages/MultiViewPage'));
-const AdminPage = lazy(() => import('./pages/AdminPage'));
+const Home = lazyWithRetry(() => import('./pages/Home'));
+const LiveTV = lazyWithRetry(() => import('./pages/LiveTV'));
+const Movies = lazyWithRetry(() => import('./pages/Movies'));
+const Series = lazyWithRetry(() => import('./pages/Series'));
+const RadioPage = lazyWithRetry(() => import('./pages/Radio'));
+const Library = lazyWithRetry(() => import('./pages/Library'));
+const PortalBrowser = lazyWithRetry(() => import('./pages/PortalBrowser'));
+const VPNPage = lazyWithRetry(() => import('./pages/VPNPage'));
+const DuoPage = lazyWithRetry(() => import('./pages/DuoPage'));
+const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'));
+const MultiViewPage = lazyWithRetry(() => import('./pages/MultiViewPage'));
+const AdminPage = lazyWithRetry(() => import('./pages/AdminPage'));
 
 export default function App() {
   const location = useLocation();

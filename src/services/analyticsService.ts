@@ -8,7 +8,10 @@ import {
   onSnapshot, 
   query, 
   orderBy, 
-  limit 
+  limit,
+  getDocs,
+  where,
+  addDoc
 } from 'firebase/firestore';
 
 export interface DailyLoginUser {
@@ -123,3 +126,80 @@ export async function updateUserSubscription(
     console.error('Failed to update user subscription in Firestore:', err);
   }
 }
+
+/**
+ * Activates 1-Month Premium VIP (Sans Pub) subscription for a user account identified by their email,
+ * and records the payment transaction in Firestore.
+ */
+export async function activatePremiumByEmail(
+  targetEmail: string,
+  expiresAt: number,
+  paymentDetails: {
+    phone: string;
+    operator: string;
+    amount: string;
+    transactionRef?: string;
+  }
+): Promise<{ success: boolean; updatedCount: number; targetEmail: string }> {
+  const normalizedEmail = targetEmail.trim().toLowerCase();
+  if (!normalizedEmail) {
+    throw new Error('Email requis');
+  }
+
+  try {
+    const todayKey = getTodayKey();
+    let updatedCount = 0;
+
+    // 1. Search for user by email in users collection
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', normalizedEmail));
+    const snap = await getDocs(q);
+
+    for (const docSnap of snap.docs) {
+      await setDoc(doc(db, 'users', docSnap.id), {
+        subscriptionPlan: 'premium',
+        subscriptionExpiresAt: expiresAt,
+        subscriptionMethod: paymentDetails.operator,
+        subscriptionPhone: paymentDetails.phone,
+        subscriptionUpdatedAt: serverTimestamp()
+      }, { merge: true });
+
+      // Also update today's login record if exists
+      await setDoc(doc(db, 'daily_stats', todayKey, 'logins', docSnap.id), {
+        subscriptionPlan: 'premium'
+      }, { merge: true });
+
+      updatedCount++;
+    }
+
+    // 2. Record official payment transaction in payments collection
+    const txRef = paymentDetails.transactionRef || `AIRTEL-${Date.now().toString().slice(-6)}`;
+    await addDoc(collection(db, 'payments'), {
+      targetEmail: normalizedEmail,
+      phone: paymentDetails.phone,
+      operator: paymentDetails.operator,
+      amount: paymentDetails.amount,
+      durationMonths: 1,
+      expiresAt: expiresAt,
+      timestamp: serverTimestamp(),
+      status: 'confirmed',
+      transactionRef: txRef
+    });
+
+    // 3. Add an admin notification
+    await addDoc(collection(db, 'notifications'), {
+      type: 'payment_received',
+      title: 'Paiement Mobile Money Confirmé',
+      userEmail: normalizedEmail,
+      message: `Paiement ${paymentDetails.amount} reçu via ${paymentDetails.operator} (${paymentDetails.phone}). Compte ${normalizedEmail} passé en Premium Sans Pub pour 1 mois.`,
+      timestamp: serverTimestamp(),
+      read: false
+    });
+
+    return { success: true, updatedCount, targetEmail: normalizedEmail };
+  } catch (err) {
+    console.error('Failed to activate premium by email:', err);
+    throw err;
+  }
+}
+

@@ -3,10 +3,21 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 
-// Sécurité supplémentaire : intercepter les rejections WebSocket tôt
+// Sécurité supplémentaire : intercepter les rejections WebSocket tôt et les erreurs de chargement dynamique
 window.addEventListener('unhandledrejection', (event) => {
-  if (String(event.reason || '').includes('WebSocket')) {
+  const reasonStr = String(event.reason || '');
+  if (reasonStr.includes('WebSocket')) {
     event.preventDefault();
+  }
+});
+
+// Recharger automatiquement en cas de désynchronisation de chunk Vite / cache PWA
+window.addEventListener('vite:preloadError', (event) => {
+  console.warn('Vite preload error intercepted, refreshing application assets:', event);
+  const reloadKey = 'nova_vite_preload_reload';
+  if (!sessionStorage.getItem(reloadKey)) {
+    sessionStorage.setItem(reloadKey, '1');
+    window.location.reload();
   }
 });
 

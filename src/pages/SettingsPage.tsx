@@ -30,7 +30,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { updateUserSubscription } from '../services/analyticsService';
+import { updateUserSubscription, activatePremiumByEmail } from '../services/analyticsService';
 import { VPNBadge } from '../components/common/VPNBadge';
 import { DnsHelpModal } from '../components/common/DnsHelpModal';
 
@@ -63,7 +63,14 @@ export function SettingsPage() {
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
   const [showPayModal, setShowPayModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'mobile_money' | 'gpay'>('mobile_money');
+  const [mobileOperator, setMobileOperator] = useState<'airtel' | 'mtn'>('airtel');
   const [mobileNumber, setMobileNumber] = useState('+242053886817');
+  const [targetAccountEmail, setTargetAccountEmail] = useState('');
+  const [confirmAccountEmail, setConfirmAccountEmail] = useState('');
+  const [transactionRef, setTransactionRef] = useState('');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [numberCopied, setNumberCopied] = useState(false);
 
   const shareMessages = {
     x: "🎬 Découvrez NOVASTREAM, la plateforme ultime de streaming cinéma, TV en direct et Live Watch Party ! Films, séries et flux HD sans interruption. 🚀 Rejoignez-moi dès maintenant : https://novastream.app #Novastream #Streaming #Cinema",
@@ -288,6 +295,12 @@ export function SettingsPage() {
                 if (subscriptionPlan === 'premium') {
                   showToast('Votre abonnement Premium 5$/mois est déjà actif !');
                 } else {
+                  const initialEmail = user?.email || '';
+                  setTargetAccountEmail(initialEmail);
+                  setConfirmAccountEmail(initialEmail);
+                  setPaymentMethod('mobile_money');
+                  setMobileOperator('airtel');
+                  setPayError(null);
                   setShowPayModal(true);
                 }
               }}
@@ -300,53 +313,61 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* Payment Simulation Modal */}
+      {/* Payment Modal with Airtel Mobile Money & Email Confirmation */}
       {showPayModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-          <div className="glass-strong rounded-3xl p-6 md:p-8 max-w-md w-full border border-amber-500/40 space-y-6 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in">
+          <div className="glass-strong rounded-3xl p-5 sm:p-8 max-w-lg w-full border border-amber-500/40 space-y-5 shadow-2xl relative my-auto">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" />
             
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
                   <Zap className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">NovaStream Premium</h3>
-                  <p className="text-xs text-amber-400 font-semibold">5,00 $ US / mois (Sans Pub)</p>
+                  <h3 className="text-base font-bold text-white">NovaStream Premium Sans Pub</h3>
+                  <p className="text-xs text-amber-400 font-semibold">5,00 $ US (3 000 FCFA) • Durée : 1 Mois</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowPayModal(false)}
-                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition"
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-4">
-              <p className="text-xs text-white/70 leading-relaxed">
-                Vous êtes sur le point de souscrire à l'abonnement <strong>NovaStream Premium Sans Publicité</strong>. Profitez d'une expérience de streaming illimitée, rapide et 100% sans coupure publicitaire.
-              </p>
-
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-                <div className="flex justify-between text-xs">
-                  <span className="text-white/60">Abonnement Mensuel</span>
-                  <span className="text-white font-bold">5,00 $</span>
+            <div className="space-y-4 text-xs">
+              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-white/60">Abonnement</span>
+                  <span className="text-white font-bold">1 Mois (30 jours) VIP Sans Pub</span>
                 </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-white/60">Publicités</span>
-                  <span className="text-emerald-400 font-bold">Supprimées (0 pub)</span>
+                <div className="flex justify-between">
+                  <span className="text-white/60">Coupures publicitaires</span>
+                  <span className="text-emerald-400 font-bold">Désactivées (0 seconde de pub)</span>
                 </div>
-                <div className="border-t border-white/10 pt-2 flex justify-between text-xs font-bold">
-                  <span className="text-white">Total facturé aujourd'hui</span>
-                  <span className="text-amber-400">5,00 $ / mois</span>
+                <div className="border-t border-white/10 pt-1.5 flex justify-between font-bold">
+                  <span className="text-white">Montant à régler</span>
+                  <span className="text-amber-400">5,00 $ / 3 000 FCFA</span>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <label className="text-[11px] text-white/60 block font-medium">Mode de paiement sécurisé</label>
+              {/* Mode de paiement */}
+              <div className="space-y-2.5">
+                <label className="text-[11px] text-white/70 block font-semibold">Moyen de paiement</label>
                 <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('mobile_money')}
+                    className={`p-2.5 rounded-xl text-center text-xs font-bold transition cursor-pointer ${
+                      paymentMethod === 'mobile_money'
+                        ? 'bg-red-600/25 border border-red-500 text-red-300 shadow-md ring-1 ring-red-500/40'
+                        : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10'
+                    }`}
+                  >
+                    Mobile Money
+                  </button>
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('card')}
@@ -356,18 +377,7 @@ export function SettingsPage() {
                         : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10'
                     }`}
                   >
-                    Carte Bancaire
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('mobile_money')}
-                    className={`p-2.5 rounded-xl text-center text-xs font-bold transition cursor-pointer ${
-                      paymentMethod === 'mobile_money'
-                        ? 'bg-amber-500/25 border border-amber-500/50 text-amber-300 shadow-md'
-                        : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10'
-                    }`}
-                  >
-                    Mobile Money
+                    Carte Visa/MC
                   </button>
                   <button
                     type="button"
@@ -383,46 +393,202 @@ export function SettingsPage() {
                 </div>
 
                 {paymentMethod === 'mobile_money' && (
-                  <div className="space-y-1.5 pt-1 animate-fadeIn">
-                    <label className="text-[11px] text-amber-400 font-bold block">
-                      Numéro Mobile Money (Airtel / MTN) :
-                    </label>
-                    <input
-                      type="text"
-                      value={mobileNumber}
-                      onChange={(e) => setMobileNumber(e.target.value)}
-                      placeholder="+242053886817"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#08081c] border border-amber-500/40 text-xs text-white font-mono focus:outline-none focus:border-amber-400 transition"
-                    />
-                    <p className="text-[10px] text-white/50">
-                      Validation instantanée pour le numéro <strong>{mobileNumber}</strong> (Sans Pub).
-                    </p>
+                  <div className="space-y-3 pt-1 animate-fadeIn">
+                    {/* Operator choice */}
+                    <div>
+                      <span className="text-[11px] text-white/60 block mb-1">Réseau :</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setMobileOperator('airtel')}
+                          className={`p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                            mobileOperator === 'airtel'
+                              ? 'bg-red-600/25 border-red-500 text-red-200 ring-1 ring-red-500/40 shadow-sm'
+                              : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
+                          }`}
+                        >
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          <span>Airtel Money (+242)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMobileOperator('mtn')}
+                          className={`p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                            mobileOperator === 'mtn'
+                              ? 'bg-amber-500/25 border-amber-500 text-amber-200 ring-1 ring-amber-500/40 shadow-sm'
+                              : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
+                          }`}
+                        >
+                          <span className="w-2 h-2 rounded-full bg-amber-400" />
+                          <span>MTN Mobile Money</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Official Airtel Number Box */}
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-r from-red-950/50 via-black to-red-950/20 border border-red-500/40 space-y-1.5 shadow-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-white/70 uppercase font-mono tracking-wider">
+                          Numéro récepteur {mobileOperator === 'airtel' ? 'Airtel Money' : 'MTN'} :
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText('+242053886817');
+                            setNumberCopied(true);
+                            setTimeout(() => setNumberCopied(false), 2500);
+                          }}
+                          className="px-2 py-0.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 text-[10px] font-mono flex items-center gap-1 transition cursor-pointer"
+                        >
+                          {numberCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          <span>{numberCopied ? 'Copié !' : 'Copier'}</span>
+                        </button>
+                      </div>
+                      <div className="text-base sm:text-lg font-black text-amber-300 font-mono tracking-wider">
+                        +242053886817
+                      </div>
+                      <p className="text-[10px] text-white/70 leading-relaxed">
+                        Envoyez <strong>5,00 $ (ou 3 000 FCFA)</strong> vers le <strong>+242053886817</strong>, puis confirmez l'email de votre compte ci-dessous.
+                      </p>
+                    </div>
+
+                    {/* Email confirmation fields */}
+                    <div className="space-y-2.5 pt-1 border-t border-white/10">
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-amber-300 font-bold block">
+                          Email du compte à passer en Premium Sans Pub :
+                        </label>
+                        <input
+                          type="email"
+                          value={targetAccountEmail}
+                          onChange={(e) => {
+                            setTargetAccountEmail(e.target.value);
+                            setPayError(null);
+                          }}
+                          placeholder="votre-email-compte@gmail.com"
+                          required
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-[#08081c] border border-white/15 text-xs text-white placeholder-white/30 font-mono focus:outline-none focus:border-amber-400 transition"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <label className="text-amber-300 font-bold">
+                            Confirmer l'Email du compte :
+                          </label>
+                          {targetAccountEmail && confirmAccountEmail && targetAccountEmail.trim().toLowerCase() === confirmAccountEmail.trim().toLowerCase() && (
+                            <span className="text-emerald-400 font-medium flex items-center gap-1 text-[10px]">
+                              <Check className="w-3 h-3" /> Emails identiques
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="email"
+                          value={confirmAccountEmail}
+                          onChange={(e) => {
+                            setConfirmAccountEmail(e.target.value);
+                            setPayError(null);
+                          }}
+                          placeholder="Retapez l'adresse email exacte"
+                          required
+                          className={`w-full px-3.5 py-2.5 rounded-xl bg-[#08081c] border text-xs text-white placeholder-white/30 font-mono focus:outline-none transition ${
+                            confirmAccountEmail && targetAccountEmail.trim().toLowerCase() !== confirmAccountEmail.trim().toLowerCase()
+                              ? 'border-red-500/70 focus:border-red-400'
+                              : 'border-white/15 focus:border-amber-400'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Transaction reference ID */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-white/50 block font-mono">
+                          Référence SMS / ID de transaction Airtel (optionnel) :
+                        </label>
+                        <input
+                          type="text"
+                          value={transactionRef}
+                          onChange={(e) => setTransactionRef(e.target.value)}
+                          placeholder="ex: PP261021.1245.G7894"
+                          className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white/80 placeholder-white/30 font-mono focus:outline-none focus:border-amber-400 transition"
+                        />
+                      </div>
+
+                      {payError && (
+                        <div className="p-2.5 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-[11px] flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                          <span>{payError}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex items-center gap-3 pt-1">
               <button
+                type="button"
                 onClick={() => setShowPayModal(false)}
-                className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-semibold transition border border-white/10"
+                className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-semibold transition border border-white/10 cursor-pointer"
               >
                 Annuler
               </button>
               <button
-                onClick={() => {
-                  const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-                  setSubscriptionPlan('premium', expiresAt);
-                  if (user?.uid) {
-                    updateUserSubscription(user.uid, 'premium', expiresAt);
+                type="button"
+                onClick={async () => {
+                  setPayError(null);
+                  if (paymentMethod === 'mobile_money') {
+                    const email1 = targetAccountEmail.trim().toLowerCase();
+                    const email2 = confirmAccountEmail.trim().toLowerCase();
+                    if (!email1 || !email1.includes('@')) {
+                      setPayError('Veuillez saisir une adresse email valide.');
+                      return;
+                    }
+                    if (email1 !== email2) {
+                      setPayError('Les deux adresses email saisies ne correspondent pas.');
+                      return;
+                    }
+
+                    setIsProcessingPayment(true);
+                    try {
+                      const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+                      await activatePremiumByEmail(email1, expiresAt, {
+                        phone: '+242053886817',
+                        operator: mobileOperator === 'airtel' ? 'Airtel Money (+242)' : 'MTN Mobile Money (+242)',
+                        amount: '5,00 $ (3 000 FCFA)',
+                        transactionRef: transactionRef.trim() || undefined
+                      });
+
+                      // If current active user is this email, update active session and store
+                      if (user?.email?.trim().toLowerCase() === email1) {
+                        setSubscriptionPlan('premium', expiresAt);
+                        if (user?.uid) {
+                          await updateUserSubscription(user.uid, 'premium', expiresAt);
+                        }
+                      }
+
+                      setShowPayModal(false);
+                      showToast(`🎉 Paiement confirmé ! Le compte ${email1} est passé en Premium Sans Pub pour 1 mois (jusqu'au ${new Date(expiresAt).toLocaleDateString('fr-FR')}) !`);
+                    } catch (err: any) {
+                      setPayError(err?.message || 'Erreur lors de la confirmation du paiement.');
+                    } finally {
+                      setIsProcessingPayment(false);
+                    }
+                  } else {
+                    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+                    setSubscriptionPlan('premium', expiresAt);
+                    if (user?.uid) {
+                      await updateUserSubscription(user.uid, 'premium', expiresAt);
+                    }
+                    setShowPayModal(false);
+                    showToast('🎉 Félicitations ! Votre abonnement Premium 5$/mois sans pub est activé pour 1 mois !');
                   }
-                  setShowPayModal(false);
-                  showToast(`🎉 Félicitations ! Abonnement VIP Sans Pub activé avec succès pour le numéro ${mobileNumber} !`);
                 }}
-                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer"
+                disabled={isProcessingPayment}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Payer 5,00 $ & Activer</span>
+                <span>{isProcessingPayment ? 'Validation...' : 'Confirmer & Activer 1 Mois (5$)'}</span>
               </button>
             </div>
           </div>

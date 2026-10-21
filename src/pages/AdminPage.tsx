@@ -292,9 +292,9 @@ export default function AdminPage() {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
-      item.userName.toLowerCase().includes(q) ||
-      item.userEmail.toLowerCase().includes(q) ||
-      item.comment.toLowerCase().includes(q)
+      (item.userName || '').toLowerCase().includes(q) ||
+      (item.userEmail || '').toLowerCase().includes(q) ||
+      (item.comment || '').toLowerCase().includes(q)
     );
   });
 

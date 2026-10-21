@@ -24,7 +24,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (authListenerInitialized) return;
     authListenerInitialized = true;
 
+    // Fast fallback for iOS Safari: if Firebase IndexedDB lookup takes too long on cold start,
+    // don't leave the user stuck on the loading spinner, show the AuthGate promptly.
+    const fallbackTimer = setTimeout(() => {
+      useAuthStore.setState((state) => (state.loading ? { loading: false } : {}));
+    }, 1500);
+
     onAuthStateChanged(auth, async (user) => {
+      clearTimeout(fallbackTimer);
       if (user) {
         const isAdmin = user.email === 'cyber.kan587@gmail.com' || false;
         set({ user, isAdmin, loading: false });

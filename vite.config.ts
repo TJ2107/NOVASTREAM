@@ -11,7 +11,7 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg', 'NOVOSTREAM.png'],
+        includeAssets: ['favicon.ico', 'favicon-32x32.png', 'favicon-16x16.png', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'NOVOSTREAM.png', 'icon-maskable-512.png'],
         manifest: {
           id: '/',
           name: 'NOVASTREAM - Hub Multimédia',
@@ -24,6 +24,12 @@ export default defineConfig(() => {
           start_url: '/',
           scope: '/',
           icons: [
+            {
+              src: '/favicon-32x32.png',
+              sizes: '32x32',
+              type: 'image/png',
+              purpose: 'any',
+            },
             {
               src: '/icon-192.png',
               sizes: '192x192',
@@ -38,6 +44,12 @@ export default defineConfig(() => {
             },
             {
               src: '/NOVOSTREAM.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: '/icon-maskable-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
