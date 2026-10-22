@@ -334,6 +334,7 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     title: 'Télé Congo (Brazzaville)',
     url: 'https://vps122407.serveur-vps.net/hls/drtv.m3u8',
     alternativeUrls: [
+      'https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8',
       'https://www.youtube.com/embed?listType=search&list=TELE%20CONGO%20EN%20DIRECT&autoplay=1'
     ],
     type: 'live',
@@ -349,13 +350,17 @@ export const INITIAL_DEMO_SOURCES: MediaItem[] = [
     name: 'DRTV (Congo)',
     title: 'DRTV International (Brazzaville)',
     url: 'https://vps122407.serveur-vps.net/hls/drtv.m3u8',
+    alternativeUrls: [
+      'https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5f1712a76f25cb0007204f14/master.m3u8',
+      'https://www.youtube.com/embed?listType=search&list=DRTV%20INTERNATIONAL%20DIRECT&autoplay=1'
+    ],
     type: 'live',
     group: 'Afrique & Congo',
     category: 'general',
     country: 'CG',
     language: 'Français',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Flag_of_the_Republic_of_the_Congo.svg/320px-Flag_of_the_Republic_of_the_Congo.svg.png',
-    description: 'Chaîne privée généraliste de la République du Congo en direct de Brazzaville.'
+    description: 'Chaîne privée généraliste de la République du Congo en direct de Brazzaville (avec basculement automatique de secours).'
   },
   {
     id: 'demo-evitv',

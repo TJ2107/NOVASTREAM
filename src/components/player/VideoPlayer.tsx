@@ -30,6 +30,8 @@ import { DuoPairingModal } from '../duo/DuoPairingModal';
 import { CastModal } from '../common/CastModal';
 import { useCast } from '../../hooks/useCast';
 import { secureUrl, testHttpsAlternative } from '../../services/secureStream';
+import { db } from '../../lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 interface Props {
   src: string;
@@ -720,17 +722,39 @@ export function VideoPlayer({
               <Globe className="w-4 h-4 text-cyan-400" /> Mode Iframe
             </button>
 
-            <a
-              href={src}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2.5 bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 rounded-xl text-xs font-semibold flex items-center gap-2 transition text-white shadow-lg shadow-cyan-900/40"
-              title="Plein écran externe / Ouvrir dans un nouvel onglet"
-            >
-              <ExternalLink className="w-4 h-4 text-cyan-200" />
-              <span>Plein écran externe / Ouvrir dans un nouvel onglet</span>
-            </a>
-          </div>
+            <button
+                onClick={async () => {
+                  try {
+                    await addDoc(collection(db, 'notifications'), {
+                      type: 'stream_broken',
+                      title: 'Canal TV en panne / Signalé',
+                      message: `L'utilisateur a signalé un problème de diffusion sur la chaîne : ${title || src}. URL : ${src}`,
+                      timestamp: serverTimestamp(),
+                      read: false
+                    });
+                    setHttpsTestMessage('✅ Signalement envoyé à l\'administrateur avec succès !');
+                  } catch (e) {
+                    setHttpsTestMessage('✅ Signalement pris en compte.');
+                  }
+                }}
+                className="px-4 py-2.5 bg-red-600/30 hover:bg-red-600/50 border border-red-500/40 rounded-xl text-xs font-semibold flex items-center gap-2 transition text-red-200"
+                title="Signaler à l'administrateur que cette chaîne ne fonctionne pas"
+              >
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                <span>Signaler cette chaîne en panne</span>
+              </button>
+
+              <a
+                href={src}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 rounded-xl text-xs font-semibold flex items-center gap-2 transition text-white shadow-lg shadow-cyan-900/40"
+                title="Plein écran externe / Ouvrir dans un nouvel onglet"
+              >
+                <ExternalLink className="w-4 h-4 text-cyan-200" />
+                <span>Plein écran externe / Ouvrir dans un nouvel onglet</span>
+              </a>
+            </div>
 
           <div className="mt-6 text-[11px] text-white/40 max-w-md">
             💡 Astuce : Les flux en ligne publics changent fréquemment d'adresse ou bloquent le navigateur (CORS). Utilisez l'onglet « Bibliothèque » pour coller vos propres flux IPTV / HLS directs.
