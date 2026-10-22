@@ -116,17 +116,78 @@ export function VideoPlayer({
       setSubtitleText(null);
     } else {
       const sampleTexts: Record<string, string> = {
-        fr: '📍 [Sous-titre FR] Bienvenue sur NOVASTREAM - Diffusion multilingue active.',
-        en: '📍 [EN Subtitle] Welcome to NOVASTREAM - Multilingual streaming active.',
-        es: '📍 [Subtítulo ES] Bienvenido a NOVASTREAM - Transmisión multilingüe activa.',
-        ar: '📍 [ترجمة عربية] أهلاً بك في نوفاستريم - بث متعدد اللغات نشط.',
-        pt: '📍 [Legenda PT] Bem-vindo ao NOVASTREAM - Transmissão multilíngue ativa.',
+        fr: '📍 [Sous-titre FR] Bienvenue sur NOVASTREAM - Mode multilingue actif.',
+        en: '📍 [EN Subtitle] Welcome to NOVASTREAM - Multilingual mode active.',
+        es: '📍 [Subtítulo ES] Bienvenido a NOVASTREAM - Modo multilingüe activo.',
+        ar: '📍 [ترجمة عربية] أهلاً بك في نوفاستريم - وضع متعدد اللغات نشط.',
+        pt: '📍 [Legenda PT] Bem-vindo ao NOVASTREAM - Modo multilíngue ativo.',
         ln: '📍 [Lingala] Boyei malamu na NOVASTREAM - Kobimisa maloba na lokota ya Lingala.'
       };
       setSubtitleText(sampleTexts[langCode] || '📍 Sous-titre actif.');
-      // Auto clear sample after 8 seconds
-      setTimeout(() => setSubtitleText(null), 8000);
     }
+  };
+
+  const handleSubtitleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (!content) return;
+      
+      const cues: { start: number; end: number; text: string }[] = [];
+      const lines = content.split(/\r?\n/);
+      let startTime = 0;
+      let endTime = 0;
+      let textLines: string[] = [];
+
+      const timeToSeconds = (timeStr: string) => {
+        const parts = timeStr.trim().split(':');
+        if (parts.length < 3) return 0;
+        const hours = parseFloat(parts[0]);
+        const minutes = parseFloat(parts[1]);
+        const secsParts = parts[2].split(/[,.]/);
+        const seconds = parseFloat(secsParts[0]);
+        const millis = parseFloat(secsParts[1] || '0') / 1000;
+        return hours * 3600 + minutes * 60 + seconds + millis;
+      };
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.includes('-->')) {
+          const times = line.split('-->');
+          startTime = timeToSeconds(times[0]);
+          endTime = timeToSeconds(times[1]);
+          textLines = [];
+        } else if (line === '') {
+          if (textLines.length > 0) {
+            cues.push({ start: startTime, end: endTime, text: textLines.join('\n') });
+            textLines = [];
+          }
+        } else if (!line.match(/^\d+$/)) {
+          textLines.push(line);
+        }
+      }
+
+      if (cues.length > 0) {
+        setSelectedSubtitleLang('custom');
+        setShowSubtitles(false);
+        setSubtitleText('✅ Fichier de sous-titres chargé (' + file.name + ')');
+        
+        const video = videoRef.current;
+        if (video) {
+          const updateSub = () => {
+            const cur = video.currentTime;
+            const currentCue = cues.find((c) => cur >= c.start && cur <= c.end);
+            setSubtitleText(currentCue ? currentCue.text : null);
+          };
+          video.addEventListener('timeupdate', updateSub);
+        }
+      } else {
+        setSubtitleText('⚠️ Format de sous-titres non reconnu (.srt ou .vtt requis)');
+      }
+    };
+    reader.readAsText(file);
   };
 
   const [useIframeFallback, setUseIframeFallback] = useState(false);
@@ -1058,9 +1119,18 @@ export function VideoPlayer({
                 </button>
 
                 {showSubtitles && (
-                  <div className="absolute bottom-10 right-0 w-44 glass-strong rounded-xl p-2.5 shadow-2xl border border-purple-500/30 text-xs space-y-1.5 z-40">
-                    <div className="text-[10px] font-bold text-white/50 uppercase tracking-wider px-2 py-1 border-b border-white/10 mb-1">
-                      Sous-titres / Langue
+                  <div className="absolute bottom-10 right-0 w-52 glass-strong rounded-xl p-2.5 shadow-2xl border border-purple-500/30 text-xs space-y-1.5 z-40">
+                    <div className="text-[10px] font-bold text-white/50 uppercase tracking-wider px-2 py-1 border-b border-white/10 mb-1 flex items-center justify-between">
+                      <span>Sous-titres / Langue</span>
+                      <label className="text-[10px] text-cyan-400 hover:underline cursor-pointer font-semibold">
+                        + Importer SRT
+                        <input
+                          type="file"
+                          accept=".srt,.vtt"
+                          onChange={handleSubtitleFileUpload}
+                          className="hidden"
+                        />
+                      </label>
                     </div>
                     {subtitleLanguages.map((lang) => (
                       <button

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAudioStore } from '../../store/useAudioStore';
 import { RadioVisualizerModal } from '../radio/RadioVisualizerModal';
 import { CastModal } from '../common/CastModal';
+import { secureUrl } from '../../services/secureStream';
 
 export function AudioPlayer() {
   const { currentTrack, isPlaying, volume, isMuted, togglePlay, close, setVolume, toggleMute, resume, pause } = useAudioStore();
@@ -24,7 +25,7 @@ export function AudioPlayer() {
     }
 
     const audio = audioRef.current;
-    const url = currentTrack.url;
+    const url = secureUrl(currentTrack.url);
 
     if (url.includes('.m3u8') && Hls.isSupported()) {
       const hls = new Hls({ enableWorker: true });
