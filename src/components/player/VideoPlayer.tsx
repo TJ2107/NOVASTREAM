@@ -22,7 +22,8 @@ import {
   Cast,
   Lock,
   Server,
-  Zap
+  Zap,
+  MessageSquareText
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { SUPPORTED_STREAMING_PORTALS } from '../../services/UrlResolver';
@@ -94,6 +95,40 @@ export function VideoPlayer({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isBuffering, setIsBuffering] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSubtitles, setShowSubtitles] = useState(false);
+  const [selectedSubtitleLang, setSelectedSubtitleLang] = useState<string>('off');
+  const [subtitleText, setSubtitleText] = useState<string | null>(null);
+
+  const subtitleLanguages = [
+    { code: 'off', label: 'Désactivés' },
+    { code: 'fr', label: 'Français (FR)' },
+    { code: 'en', label: 'English (EN)' },
+    { code: 'es', label: 'Español (ES)' },
+    { code: 'ar', label: 'العربية (AR)' },
+    { code: 'pt', label: 'Português (PT)' },
+    { code: 'ln', label: 'Lingala (LN)' }
+  ];
+
+  const handleSubtitleChange = (langCode: string) => {
+    setSelectedSubtitleLang(langCode);
+    setShowSubtitles(false);
+    if (langCode === 'off') {
+      setSubtitleText(null);
+    } else {
+      const sampleTexts: Record<string, string> = {
+        fr: '📍 [Sous-titre FR] Bienvenue sur NOVASTREAM - Diffusion multilingue active.',
+        en: '📍 [EN Subtitle] Welcome to NOVASTREAM - Multilingual streaming active.',
+        es: '📍 [Subtítulo ES] Bienvenido a NOVASTREAM - Transmisión multilingüe activa.',
+        ar: '📍 [ترجمة عربية] أهلاً بك في نوفاستريم - بث متعدد اللغات نشط.',
+        pt: '📍 [Legenda PT] Bem-vindo ao NOVASTREAM - Transmissão multilíngue ativa.',
+        ln: '📍 [Lingala] Boyei malamu na NOVASTREAM - Kobimisa maloba na lokota ya Lingala.'
+      };
+      setSubtitleText(sampleTexts[langCode] || '📍 Sous-titre actif.');
+      // Auto clear sample after 8 seconds
+      setTimeout(() => setSubtitleText(null), 8000);
+    }
+  };
+
   const [useIframeFallback, setUseIframeFallback] = useState(false);
   const [isDuoModalOpen, setIsDuoModalOpen] = useState(false);
   const [isCastModalOpen, setIsCastModalOpen] = useState(false);
@@ -630,6 +665,13 @@ export function VideoPlayer({
         playsInline
       />
 
+      {/* Subtitles Overlay */}
+      {subtitleText && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 max-w-xl px-4 py-2 rounded-xl bg-black/80 backdrop-blur-md border border-white/20 text-white text-sm md:text-base font-semibold text-center shadow-2xl animate-fade-in pointer-events-none">
+          {subtitleText}
+        </div>
+      )}
+
       {/* Buffering loader */}
       {isBuffering && !errorMessage && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -998,6 +1040,46 @@ export function VideoPlayer({
 
             {/* Right controls */}
             <div className="flex items-center gap-1.5 md:gap-2">
+              {/* Subtitles / Translation Menu button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowSubtitles(!showSubtitles)}
+                  className={`p-2 rounded-lg transition tv-focusable flex items-center gap-1 ${
+                    selectedSubtitleLang !== 'off' ? 'text-amber-400 bg-amber-500/10 border border-amber-500/30' : 'hover:bg-white/10 text-white/80 hover:text-white'
+                  }`}
+                  title="Sous-titres & Traduction multilingue"
+                >
+                  <MessageSquareText className="w-4 h-4" />
+                  {selectedSubtitleLang !== 'off' && (
+                    <span className="text-[10px] font-mono font-bold uppercase hidden sm:inline">
+                      {selectedSubtitleLang}
+                    </span>
+                  )}
+                </button>
+
+                {showSubtitles && (
+                  <div className="absolute bottom-10 right-0 w-44 glass-strong rounded-xl p-2.5 shadow-2xl border border-purple-500/30 text-xs space-y-1.5 z-40">
+                    <div className="text-[10px] font-bold text-white/50 uppercase tracking-wider px-2 py-1 border-b border-white/10 mb-1">
+                      Sous-titres / Langue
+                    </div>
+                    {subtitleLanguages.map((lang) => (
+                      <button
+                        key={lang.code}
+                        onClick={() => handleSubtitleChange(lang.code)}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg font-medium transition flex items-center justify-between ${
+                          selectedSubtitleLang === lang.code
+                            ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold shadow-md'
+                            : 'hover:bg-white/10 text-white/80'
+                        }`}
+                      >
+                        <span>{lang.label}</span>
+                        {selectedSubtitleLang === lang.code && <span className="text-[10px]">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Settings button */}
               <div className="relative">
                 <button
