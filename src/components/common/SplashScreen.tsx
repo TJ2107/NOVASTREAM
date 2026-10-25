@@ -5,9 +5,10 @@ import { NovaLogo } from './NovaLogo';
 
 interface SplashProps {
   onComplete: () => void;
+  isInitializing?: boolean;
 }
 
-export function SplashScreen({ onComplete }: SplashProps) {
+export function SplashScreen({ onComplete, isInitializing }: SplashProps) {
   const [showTagline, setShowTagline] = useState(false);
   const [showBadges, setShowBadges] = useState(false);
   const onCompleteRef = React.useRef(onComplete);

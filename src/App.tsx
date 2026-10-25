@@ -48,10 +48,19 @@ export default function App() {
   } = useAppStore();
   const { user, isAdmin, loading, initAuth } = useAuthStore();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+  const [splashDone, setSplashDone] = useState(() => {
+    try {
+      return sessionStorage.getItem('novastream_splash_done') === '1';
+    } catch {
+      return false;
+    }
+  });
 
   const handleSplashComplete = useCallback(() => {
-    setShowSplash(false);
+    try {
+      sessionStorage.setItem('novastream_splash_done', '1');
+    } catch {}
+    setSplashDone(true);
   }, []);
 
   const isPlayingMedia = /^\/(tv|movies|series)\/[^/]+$/.test(location.pathname) || location.pathname === '/multiview' || (location.pathname === '/browser' && location.search.includes('category='));
@@ -76,18 +85,17 @@ export default function App() {
 
   // Accumulate watch time for free users when watching media
   useEffect(() => {
-    if (showSplash || subscriptionPlan !== 'free' || !isPlayingMedia) return;
+    if (!splashDone || subscriptionPlan !== 'free' || !isPlayingMedia) return;
     const interval = setInterval(() => {
       incrementFreeWatchSeconds(1);
     }, 1000);
     return () => clearInterval(interval);
-  }, [showSplash, subscriptionPlan, isPlayingMedia, incrementFreeWatchSeconds]);
+  }, [splashDone, subscriptionPlan, isPlayingMedia, incrementFreeWatchSeconds]);
 
   // Initialize Firebase Auth listener
   useEffect(() => {
     initAuth();
   }, [initAuth]);
-
 
   // Enable TV remote control navigation when TV mode is active
   useTVRemoteNavigation();
@@ -100,25 +108,12 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  // 1. Launch Splash Screen: Always unfolds smoothly on app start
-  if (showSplash) {
-    return <SplashScreen onComplete={handleSplashComplete} />;
+  // 1. Single Unified Splash Screen: Stays visible smoothly until splash animation is done AND session is initialized
+  if (!splashDone || loading) {
+    return <SplashScreen onComplete={handleSplashComplete} isInitializing={loading} />;
   }
 
-  // 2. Loading state while verifying Google session (if not already finished during splash)
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#04040a] flex flex-col items-center justify-center text-white space-y-4">
-        <NovaLogo size="lg" showText={true} />
-        <div className="flex items-center gap-2.5 px-4 py-2 rounded-full glass border border-white/10 text-xs text-white/70">
-          <div className="w-4 h-4 border-2 border-[#E50914] border-t-transparent rounded-full animate-spin" />
-          <span>Initialisation de NOVASTREAM...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // 3. Mandatory Authentication: Non-authenticated users redirected to AuthGate
+  // 2. Mandatory Authentication: Non-authenticated users redirected to AuthGate
   if (!user) {
     return <AuthGate />;
   }

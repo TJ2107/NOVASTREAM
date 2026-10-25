@@ -408,11 +408,11 @@ export function PortalBrowser() {
           </div>
         </div>
 
-        {/* Full-Feature Web Viewframe */}
+        {/* Full-Feature Web Viewframe (Proxied through /proxy if HTTP to bypass Mixed Content) */}
         <iframe
           ref={iframeRef}
           key={fullUrl}
-          src={fullUrl}
+          src={fullUrl.startsWith('http://') && typeof window !== 'undefined' && window.location.protocol === 'https:' ? `/proxy?url=${encodeURIComponent(fullUrl)}` : fullUrl}
           className="w-full flex-1 border-0 bg-black min-h-0"
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write; display-capture"
           allowFullScreen
