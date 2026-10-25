@@ -177,6 +177,33 @@ async function startServer() {
         return res.send(text);
       }
 
+      // Handle HTML pages for unencrypted web portals so relative assets are proxied too
+      const isHtml = contentType.includes('text/html');
+      if (isHtml) {
+        let htmlText = await response.text();
+        const parsedTarget = new URL(targetUrl);
+        const baseOrigin = parsedTarget.origin;
+
+        // Inject base tag or rewrite links to ensure relative assets route through /api/proxy
+        htmlText = htmlText.replace(/(href|src)="([^"]+)"/g, (match, attr, val) => {
+          if (val.startsWith('http://') || val.startsWith('https://')) {
+            return `${attr}="/api/proxy?url=${encodeURIComponent(val)}"`;
+          } else if (val.startsWith('//')) {
+            return `${attr}="/api/proxy?url=${encodeURIComponent('https:' + val)}"`;
+          } else if (val.startsWith('/')) {
+            const absoluteUrl = `${baseOrigin}${val}`;
+            return `${attr}="/api/proxy?url=${encodeURIComponent(absoluteUrl)}"`;
+          }
+          return match;
+        });
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.removeHeader('X-Frame-Options');
+        res.removeHeader('Content-Security-Policy');
+        return res.send(htmlText);
+      }
+
       // Binary media data (video .ts, .m4s, .mp4, audio .mp3, .aac, crypto keys)
       res.status(response.status);
       response.headers.forEach((value, key) => {
