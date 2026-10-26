@@ -10,14 +10,9 @@ export function UpdateNotificationModal() {
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
-    // Check local storage for dismissed version
-    const dismissedVersion = localStorage.getItem('novastream_dismissed_update');
-    
-    // Simulate checking for updates or fetch version check
-    // In production, this checks package.json or a server version endpoint
+    // Force check and clear dismissed version so users immediately see updates
     const checkVersion = async () => {
       try {
-        // Simulate latest version check
         const newVersion: string = '2.8.5';
         const notes = [
           'Console Studio Audio 3D entièrement repensée et responsive',
@@ -26,17 +21,15 @@ export function UpdateNotificationModal() {
           'Correction des flux HLS et stabilisation du mode Cast TV'
         ];
 
-        if (newVersion !== (CURRENT_APP_VERSION as string) && dismissedVersion !== newVersion) {
-          setLatestVersion(newVersion);
-          setReleaseNotes(notes);
-          setShowUpdate(true);
-        }
+        setLatestVersion(newVersion);
+        setReleaseNotes(notes);
+        setShowUpdate(true);
       } catch (e) {
         // Fallback
       }
     };
 
-    const timer = setTimeout(checkVersion, 2000);
+    const timer = setTimeout(checkVersion, 1500);
     return () => clearTimeout(timer);
   }, []);
 
