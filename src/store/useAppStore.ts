@@ -15,6 +15,7 @@ export interface MediaItem {
   userAgent?: string;
   referer?: string;
   origin?: string;
+  cookies?: string;
   logo?: string;
   group?: string;
   category?: MediaCategory;
@@ -38,6 +39,28 @@ export interface Playlist {
   items: MediaItem[];
   createdAt: number;
 }
+
+export interface GlobalProxyConfig {
+  enabled: boolean;
+  forceAllStreams: boolean;
+  defaultPreset: 'vlc' | 'tivimate' | 'apple' | 'chrome' | 'custom' | 'none';
+  defaultUserAgent: string;
+  defaultReferer: string;
+  defaultOrigin: string;
+  defaultCookies: string;
+  customHeadersList: Array<{ key: string; value: string }>;
+}
+
+export const DEFAULT_PROXY_CONFIG: GlobalProxyConfig = {
+  enabled: true,
+  forceAllStreams: false,
+  defaultPreset: 'vlc',
+  defaultUserAgent: 'VLC/3.0.20 LibVLC/3.0.20',
+  defaultReferer: '',
+  defaultOrigin: '',
+  defaultCookies: '',
+  customHeadersList: []
+};
 
 export interface VPNServer {
   id: string;
@@ -706,6 +729,11 @@ interface AppState {
   incrementFreeWatchSeconds: (delta: number) => void;
   resetFreeWatchSeconds: () => void;
   setShowInterstitialAd: (show: boolean) => void;
+
+  // Global Proxy & M3U HTTP Headers configuration
+  proxyConfig: GlobalProxyConfig;
+  setProxyConfig: (config: Partial<GlobalProxyConfig>) => void;
+  resetProxyConfig: () => void;
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -804,6 +832,13 @@ export const useAppStore = create<AppState>()(
       setVPNServer: (server) => set({ vpnServer: server }),
       setVPNProtocol: (proto) => set({ vpnProtocol: proto }),
       setVPNKillSwitch: (on) => set({ vpnKillSwitch: on }),
+
+      // Global Proxy & M3U HTTP Headers configuration
+      proxyConfig: DEFAULT_PROXY_CONFIG,
+      setProxyConfig: (config) => set((s) => ({
+        proxyConfig: { ...s.proxyConfig, ...config }
+      })),
+      resetProxyConfig: () => set({ proxyConfig: DEFAULT_PROXY_CONFIG }),
       
       addSource: (item) => set((s) => {
         const remaining = s.sources.filter(i => i.id !== item.id && !(i.url === item.url && i.type === item.type));
@@ -890,7 +925,8 @@ export const useAppStore = create<AppState>()(
         vpnServer: VPN_SERVERS[0],
         vpnProtocol: 'WireGuard (256-bit)',
         vpnKillSwitch: true,
-        vpnConnectedSince: Date.now()
+        vpnConnectedSince: Date.now(),
+        proxyConfig: DEFAULT_PROXY_CONFIG
       }),
 
       addPortalPack: (portalDomain: string) => {
@@ -969,7 +1005,8 @@ export const useAppStore = create<AppState>()(
         audioEqualizer: state.audioEqualizer,
         hasSeenTour: state.hasSeenTour,
         subscriptionPlan: state.subscriptionPlan,
-        subscriptionExpiresAt: state.subscriptionExpiresAt
+        subscriptionExpiresAt: state.subscriptionExpiresAt,
+        proxyConfig: state.proxyConfig
       }),
       merge: (persistedState: any, currentState: AppState) => {
         if (!persistedState) return currentState;

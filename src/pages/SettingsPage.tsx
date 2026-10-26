@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sliders,
   Volume2,
@@ -25,12 +25,20 @@ import {
   Share2,
   Copy,
   Check,
-  ShieldAlert
+  ShieldAlert,
+  ShieldCheck,
+  Cookie,
+  Plus,
+  RefreshCw,
+  Server,
+  Lock,
+  ExternalLink
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useAppStore } from '../store/useAppStore';
+import { useAppStore, DEFAULT_PROXY_CONFIG, type GlobalProxyConfig } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { updateUserSubscription, activatePremiumByEmail, submitPendingPayment } from '../services/analyticsService';
+import { testProxyStreamConnection, type ProxyProbeResult } from '../services/secureStream';
 import { VPNBadge } from '../components/common/VPNBadge';
 import { DnsHelpModal } from '../components/common/DnsHelpModal';
 
@@ -55,7 +63,10 @@ export function SettingsPage() {
     setTVMode,
     subscriptionPlan,
     subscriptionExpiresAt,
-    setSubscriptionPlan
+    setSubscriptionPlan,
+    proxyConfig,
+    setProxyConfig,
+    resetProxyConfig
   } = useAppStore();
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -881,6 +892,14 @@ export function SettingsPage() {
         </div>
       </div>
 
+      {/* Section: Configuration des En-têtes HTTP & Proxy M3U */}
+      <ProxyHeadersManagement
+        proxyConfig={proxyConfig}
+        onSave={setProxyConfig}
+        onReset={resetProxyConfig}
+        showToast={showToast}
+      />
+
       {/* Section 3: Compatibilité Multiplateforme */}
       <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-6">
         <div className="flex items-center gap-3 border-b border-white/10 pb-4">
@@ -1202,6 +1221,582 @@ export function SettingsPage() {
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ProxyHeadersManagement({
+  proxyConfig,
+  onSave,
+  onReset,
+  showToast
+}: {
+  proxyConfig: GlobalProxyConfig;
+  onSave: (config: Partial<GlobalProxyConfig>) => void;
+  onReset: () => void;
+  showToast: (msg: string) => void;
+}) {
+  const [enabled, setEnabled] = useState(proxyConfig?.enabled ?? true);
+  const [forceAllStreams, setForceAllStreams] = useState(proxyConfig?.forceAllStreams ?? false);
+  const [selectedPreset, setSelectedPreset] = useState<'vlc' | 'tivimate' | 'apple' | 'chrome' | 'custom' | 'none'>(
+    proxyConfig?.defaultPreset || 'vlc'
+  );
+  const [userAgent, setUserAgent] = useState(proxyConfig?.defaultUserAgent || 'VLC/3.0.20 LibVLC/3.0.20');
+  const [referer, setReferer] = useState(proxyConfig?.defaultReferer || '');
+  const [origin, setOrigin] = useState(proxyConfig?.defaultOrigin || '');
+  const [cookies, setCookies] = useState(proxyConfig?.defaultCookies || '');
+  const [customHeaders, setCustomHeaders] = useState<Array<{ key: string; value: string }>>(
+    proxyConfig?.customHeadersList || []
+  );
+
+  // Diagnostic live probe state
+  const [testUrl, setTestUrl] = useState('');
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<ProxyProbeResult | null>(null);
+
+  // Sync when prop updates
+  useEffect(() => {
+    if (proxyConfig) {
+      setEnabled(proxyConfig.enabled ?? true);
+      setForceAllStreams(proxyConfig.forceAllStreams ?? false);
+      setSelectedPreset(proxyConfig.defaultPreset || 'vlc');
+      setUserAgent(proxyConfig.defaultUserAgent || '');
+      setReferer(proxyConfig.defaultReferer || '');
+      setOrigin(proxyConfig.defaultOrigin || '');
+      setCookies(proxyConfig.defaultCookies || '');
+      setCustomHeaders(proxyConfig.customHeadersList || []);
+    }
+  }, [proxyConfig]);
+
+  const handleApplyPreset = (preset: 'vlc' | 'tivimate' | 'apple' | 'chrome' | 'none') => {
+    setSelectedPreset(preset);
+    switch (preset) {
+      case 'vlc':
+        setUserAgent('VLC/3.0.20 LibVLC/3.0.20');
+        break;
+      case 'tivimate':
+        setUserAgent('TiviMate/4.7.0 (Android TV)');
+        break;
+      case 'apple':
+        setUserAgent('AppleCoreMedia/1.0.0.19F72 (iPad; U; CPU OS 15_5 like Mac OS X; fr_fr)');
+        break;
+      case 'chrome':
+        setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+        break;
+      case 'none':
+        setUserAgent('');
+        break;
+    }
+  };
+
+  const handleAddHeaderRow = () => {
+    setCustomHeaders([...customHeaders, { key: '', value: '' }]);
+  };
+
+  const handleRemoveHeaderRow = (index: number) => {
+    setCustomHeaders(customHeaders.filter((_, i) => i !== index));
+  };
+
+  const handleHeaderRowChange = (index: number, field: 'key' | 'value', val: string) => {
+    const updated = [...customHeaders];
+    updated[index][field] = val;
+    setCustomHeaders(updated);
+  };
+
+  const handleSaveAll = () => {
+    const validCustom = customHeaders.filter((h) => h.key.trim() && h.value.trim());
+    onSave({
+      enabled,
+      forceAllStreams,
+      defaultPreset: selectedPreset,
+      defaultUserAgent: userAgent.trim(),
+      defaultReferer: referer.trim(),
+      defaultOrigin: origin.trim(),
+      defaultCookies: cookies.trim(),
+      customHeadersList: validCustom
+    });
+    showToast('Configuration des en-têtes proxy enregistrée avec succès !');
+  };
+
+  const handleResetDefaults = () => {
+    if (window.confirm('Voulez-vous restaurer les en-têtes proxy recommandés par défaut (VLC) ?')) {
+      onReset();
+      setSelectedPreset('vlc');
+      setUserAgent('VLC/3.0.20 LibVLC/3.0.20');
+      setReferer('');
+      setOrigin('');
+      setCookies('');
+      setCustomHeaders([]);
+      setForceAllStreams(false);
+      setEnabled(true);
+      showToast('En-têtes proxy réinitialisés aux valeurs recommandées (VLC).');
+    }
+  };
+
+  const handleClearHeaders = () => {
+    if (window.confirm('Voulez-vous effacer tous les en-têtes personnalisés ?')) {
+      setUserAgent('');
+      setReferer('');
+      setOrigin('');
+      setCookies('');
+      setCustomHeaders([]);
+      setSelectedPreset('none');
+      onSave({
+        defaultPreset: 'none',
+        defaultUserAgent: '',
+        defaultReferer: '',
+        defaultOrigin: '',
+        defaultCookies: '',
+        customHeadersList: []
+      });
+      showToast('Tous les en-têtes proxy ont été effacés.');
+    }
+  };
+
+  const handleRunDiagnosticTest = async () => {
+    if (!testUrl.trim()) {
+      showToast('Veuillez entrer une adresse URL de flux à tester.');
+      return;
+    }
+
+    setIsTesting(true);
+    setTestResult(null);
+
+    const builtHeaders: Record<string, string> = {};
+    if (userAgent.trim()) builtHeaders['User-Agent'] = userAgent.trim();
+    if (referer.trim()) builtHeaders['Referer'] = referer.trim();
+    if (origin.trim()) builtHeaders['Origin'] = origin.trim();
+    if (cookies.trim()) builtHeaders['Cookie'] = cookies.trim();
+    customHeaders.forEach((h) => {
+      if (h.key.trim() && h.value.trim()) builtHeaders[h.key.trim()] = h.value.trim();
+    });
+
+    const result = await testProxyStreamConnection(testUrl.trim(), builtHeaders);
+    setTestResult(result);
+    setIsTesting(false);
+  };
+
+  return (
+    <div className="glass-strong rounded-3xl p-6 md:p-8 border border-white/10 space-y-6 relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold shadow-lg shadow-purple-900/40 flex-shrink-0">
+            <ShieldCheck className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base md:text-lg font-bold text-white">
+                En-têtes HTTP & Proxy M3U (User-Agent, Referer, Cookies)
+              </h2>
+              <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-mono font-bold uppercase">
+                Anti-Blocage 403
+              </span>
+            </div>
+            <p className="text-xs text-white/60 mt-0.5">
+              Contournez les restrictions 403 Forbidden, les blocages d'agents et les exigences de cookies des serveurs IPTV lors du passage par notre proxy HTTPS.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-center">
+          <button
+            onClick={() => {
+              const nextState = !enabled;
+              setEnabled(nextState);
+              onSave({ enabled: nextState });
+              showToast(nextState ? 'Proxy NovaStream activé.' : 'Proxy NovaStream désactivé.');
+            }}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 border ${
+              enabled
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+                : 'glass text-white/50 border-white/10 hover:text-white'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${enabled ? 'bg-emerald-400 animate-pulse' : 'bg-white/30'}`} />
+            <span>{enabled ? 'Proxy Actif' : 'Proxy Inactif'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Options / Force All */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <span className="text-xs font-bold text-white block">Injection Automatique des En-têtes</span>
+              <span className="text-[10px] text-white/50 block">
+                Injecte vos en-têtes personnalisés sur tous les flux HTTP et ceux avec configuration spécifique.
+              </span>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+              ACTIF
+            </span>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2 flex items-center justify-between">
+          <div className="space-y-0.5 pr-2">
+            <span className="text-xs font-bold text-white block">Forcer le Proxy pour Tous les Flux</span>
+            <span className="text-[10px] text-white/50 block">
+              Même les flux HTTPS natifs transiteront par le proxy pour garantir la présence des en-têtes et cookies.
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              const next = !forceAllStreams;
+              setForceAllStreams(next);
+              onSave({ forceAllStreams: next });
+              showToast(next ? 'Forçage du proxy activé pour tous les flux.' : 'Forçage désactivé (mode hybride intelligent).');
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+              forceAllStreams
+                ? 'bg-purple-600 text-white shadow-md shadow-purple-900/50'
+                : 'glass text-white/60 hover:text-white border border-white/10'
+            }`}
+          >
+            {forceAllStreams ? 'OUI' : 'NON'}
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Presets Bar */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-white/80 block uppercase tracking-wider text-[11px]">
+            Profils Prédéfinis Rapides (1 Clic)
+          </span>
+          <span className="text-[10px] text-white/40">
+            Sélectionnez un profil pour renseigner l'User-Agent recommandé
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {[
+            { id: 'vlc', label: 'VLC Media Player', tag: 'Recommandé IPTV', icon: Server },
+            { id: 'tivimate', label: 'TiviMate IPTV', tag: 'Android TV', icon: Tv },
+            { id: 'apple', label: 'Apple CoreMedia', tag: 'iOS / Safari HLS', icon: Apple },
+            { id: 'chrome', label: 'Chrome Desktop', tag: 'Navigateur PC', icon: Monitor },
+            { id: 'none', label: 'Standard / Neutre', tag: 'Sans en-tête', icon: Globe }
+          ].map((preset) => {
+            const isSelected = selectedPreset === preset.id;
+            const Icon = preset.icon;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => handleApplyPreset(preset.id as any)}
+                className={`p-3 rounded-2xl text-left transition-all border flex flex-col justify-between space-y-1.5 ${
+                  isSelected
+                    ? 'bg-gradient-to-br from-purple-900/50 to-indigo-900/50 border-purple-500 shadow-lg shadow-purple-950/40 text-white'
+                    : 'glass border-white/5 hover:border-white/20 text-white/70 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <Icon className={`w-4 h-4 ${isSelected ? 'text-purple-300' : 'text-white/40'}`} />
+                  {isSelected && <span className="text-[10px] text-purple-300 font-bold">✓</span>}
+                </div>
+                <div>
+                  <span className="text-xs font-bold block truncate">{preset.label}</span>
+                  <span className="text-[9px] text-white/50 block font-mono">{preset.tag}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Form Fields: User-Agent, Referer, Cookies, Origin */}
+      <div className="space-y-4 pt-1">
+        {/* 1. User-Agent */}
+        <div className="p-4 rounded-2xl bg-black/30 border border-white/10 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-white flex items-center gap-2">
+              <span>User-Agent (Agent Utilisateur)</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">
+                Principal contournement 403
+              </span>
+            </label>
+            <span className="text-[10px] text-white/40 hidden sm:inline font-mono">En-tête: User-Agent</span>
+          </div>
+          <input
+            type="text"
+            value={userAgent}
+            onChange={(e) => {
+              setUserAgent(e.target.value);
+              setSelectedPreset('custom');
+            }}
+            placeholder="Ex: VLC/3.0.20 LibVLC/3.0.20 ou TiviMate/4.7.0"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-purple-500 outline-none transition"
+          />
+          <p className="text-[11px] text-white/50 leading-relaxed">
+            Transmis à chaque segment HLS (.m3u8, .ts, .m4s). Les serveurs IPTV bloquent 95% des requêtes provenant de navigateurs web ordinaires avec un code 403 Forbidden.
+          </p>
+        </div>
+
+        {/* 2. Referer & Origin */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 rounded-2xl bg-black/30 border border-white/10 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-white flex items-center gap-2">
+                <span>Referer (Page Référente)</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono">
+                  Anti-Hotlinking
+                </span>
+              </label>
+            </div>
+            <input
+              type="text"
+              value={referer}
+              onChange={(e) => setReferer(e.target.value)}
+              placeholder="Ex: https://fournisseur-iptv.com/"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-cyan-500 outline-none transition"
+            />
+            <p className="text-[10px] text-white/50">
+              Requis par les fournisseurs qui vérifient que la requête provient bien de leur site web officiel.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-black/30 border border-white/10 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-white flex items-center gap-2">
+                <span>Origin (Origine CORS)</span>
+              </label>
+            </div>
+            <input
+              type="text"
+              value={origin}
+              onChange={(e) => setOrigin(e.target.value)}
+              placeholder="Ex: https://fournisseur-iptv.com"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-cyan-500 outline-none transition"
+            />
+            <p className="text-[10px] text-white/50">
+              Domaine d'origine injecté dans l'en-tête HTTP 'Origin' pour satisfaire les pare-feux stricts.
+            </p>
+          </div>
+        </div>
+
+        {/* 3. Cookies & Session Tokens */}
+        <div className="p-4 rounded-2xl bg-black/30 border border-white/10 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-white flex items-center gap-2">
+              <Cookie className="w-3.5 h-3.5 text-amber-400" />
+              <span>Cookies & Jetons de Session (En-tête Cookie)</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono">
+                Flux avec Session / Auth
+              </span>
+            </label>
+            <span className="text-[10px] text-white/40 hidden sm:inline font-mono">En-tête: Cookie</span>
+          </div>
+          <textarea
+            rows={2}
+            value={cookies}
+            onChange={(e) => setCookies(e.target.value)}
+            placeholder="Ex: PHPSESSID=d9s8f7e6d5c4b3a2; token=eyJhbGci...; cf_clearance=x1y2z3..."
+            className="w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-amber-500 outline-none transition resize-y"
+          />
+          <p className="text-[11px] text-white/50 leading-relaxed">
+            Format standard de cookies HTTP séparés par des points-virgules (<code>nom=valeur; nom2=valeur2</code>). Ces cookies sont attachés à chaque requête de playlist et de segment .ts via le proxy.
+          </p>
+        </div>
+
+        {/* 4. Additional Custom Headers (Key / Value) */}
+        <div className="p-4 rounded-2xl bg-black/30 border border-white/10 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-white block">En-têtes Additionnels Personnalisés</span>
+              <span className="text-[10px] text-white/50">
+                Ajoutez d'autres en-têtes spécifiques (ex: <code>Authorization</code>, <code>X-Forwarded-For</code>, <code>Accept-Language</code>)
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleAddHeaderRow}
+              className="px-3 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-xs font-semibold flex items-center gap-1.5 transition"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Ajouter un en-tête</span>
+            </button>
+          </div>
+
+          {customHeaders.length === 0 ? (
+            <div className="p-3 text-center rounded-xl bg-white/[0.02] border border-dashed border-white/10 text-white/40 text-xs">
+              Aucun en-tête additionnel configuré. Cliquez sur "+ Ajouter un en-tête" pour en créer un.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {customHeaders.map((hdr, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={hdr.key}
+                    onChange={(e) => handleHeaderRowChange(idx, 'key', e.target.value)}
+                    placeholder="Nom (ex: Authorization)"
+                    className="w-1/3 px-3 py-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-purple-500 outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={hdr.value}
+                    onChange={(e) => handleHeaderRowChange(idx, 'value', e.target.value)}
+                    placeholder="Valeur (ex: Bearer eyJ...)"
+                    className="flex-1 px-3 py-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-purple-500 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveHeaderRow(idx)}
+                    className="p-2 rounded-xl glass hover:bg-red-500/20 text-red-400 hover:text-red-300 transition"
+                    title="Supprimer cet en-tête"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 5. Live Interactive Diagnostic Tester */}
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-black/60 to-purple-950/20 border border-purple-500/30 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-purple-400" />
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+              Outil de Test & Diagnostic Live du Proxy
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setTestUrl('http://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5f1712a76f25cb0007204f14/master.m3u8');
+            }}
+            className="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-medium cursor-pointer"
+          >
+            Insérer URL exemple
+          </button>
+        </div>
+
+        <p className="text-[11px] text-white/60 leading-relaxed">
+          Saisissez une adresse de flux M3U / M3U8 pour envoyer une requête sonde via le proxy avec vos en-têtes actuels et vérifier instantanément le statut retourné par le serveur.
+        </p>
+
+        <div className="flex flex-col sm:flex-row items-center gap-2">
+          <input
+            type="text"
+            value={testUrl}
+            onChange={(e) => setTestUrl(e.target.value)}
+            placeholder="https://serveur.com/chaine/live.m3u8"
+            className="w-full flex-1 px-3.5 py-2.5 rounded-xl bg-black/70 border border-white/15 text-white font-mono text-xs focus:border-purple-500 outline-none"
+          />
+          <button
+            type="button"
+            onClick={handleRunDiagnosticTest}
+            disabled={isTesting}
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition flex-shrink-0 disabled:opacity-50 shadow-lg shadow-purple-900/40 cursor-pointer"
+          >
+            {isTesting ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Test en cours...</span>
+              </>
+            ) : (
+              <>
+                <Zap className="w-3.5 h-3.5" />
+                <span>Tester la connexion</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Diagnostic Results Box */}
+        {testResult && (
+          <div
+            className={`p-4 rounded-xl border space-y-2 text-xs font-mono animate-fade-in ${
+              testResult.ok
+                ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200'
+                : 'bg-red-950/40 border-red-500/40 text-red-200'
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    testResult.ok ? 'bg-emerald-500 text-black' : 'bg-red-500 text-white'
+                  }`}
+                >
+                  HTTP {testResult.status} {testResult.statusText}
+                </span>
+                <span className="text-white/80 font-bold">
+                  {testResult.ok ? 'Connexion réussie !' : 'Requête bloquée ou rejetée'}
+                </span>
+              </div>
+              <span className="text-white/60 text-[11px]">
+                Latence : <strong>{testResult.latencyMs} ms</strong>
+              </span>
+            </div>
+
+            <div className="space-y-1 text-[11px]">
+              <div>
+                <span className="text-white/50">Type de contenu : </span>
+                <span className="text-white font-bold">{testResult.contentType}</span>
+              </div>
+              {testResult.error && (
+                <div>
+                  <span className="text-red-400">Erreur : </span>
+                  <span className="text-white">{testResult.error}</span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-[10px] text-white/70 pt-1 font-sans">
+              {testResult.ok ? (
+                <span>
+                  🎉 <strong>Flux débloqué :</strong> Le serveur accepte les en-têtes configurés. Vous pouvez lire ce flux dans l'application sans rencontrer d'erreur 403.
+                </span>
+              ) : testResult.status === 403 ? (
+                <span>
+                  ⚠️ <strong>Code 403 (Forbidden) :</strong> Le serveur bloque la requête. Essayez de sélectionner le profil <strong>VLC Media Player</strong>, ou vérifiez que le <strong>Referer</strong> ou vos <strong>Cookies</strong> sont corrects.
+                </span>
+              ) : (
+                <span>
+                  ⚠️ Le serveur a répondu avec le statut {testResult.status}. Vérifiez la validité du lien ou le protocole du flux.
+                </span>
+              )}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-white/10">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={handleResetDefaults}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl glass hover:bg-white/10 text-xs font-semibold text-white/80 hover:text-white transition"
+          >
+            Restaurer défaut (VLC)
+          </button>
+          <button
+            type="button"
+            onClick={handleClearHeaders}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl glass hover:bg-red-500/20 text-xs font-semibold text-red-400 hover:text-red-300 transition"
+          >
+            Effacer tous les en-têtes
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSaveAll}
+          className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-xl shadow-purple-950/50 cursor-pointer active:scale-98"
+        >
+          <Check className="w-4 h-4" />
+          <span>Enregistrer les en-têtes HTTP</span>
+        </button>
       </div>
     </div>
   );

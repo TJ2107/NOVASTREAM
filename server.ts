@@ -89,11 +89,13 @@ async function startServer() {
         }
       }
 
-      // Also support standalone header query parameters: userAgent, referer, origin, authorization
+      // Also support standalone header query parameters: userAgent, referer, origin, authorization, cookie, cookies
       if (req.query.userAgent) customHeaders['User-Agent'] = req.query.userAgent as string;
       if (req.query.referer) customHeaders['Referer'] = req.query.referer as string;
       if (req.query.origin) customHeaders['Origin'] = req.query.origin as string;
       if (req.query.authorization) customHeaders['Authorization'] = req.query.authorization as string;
+      if (req.query.cookie) customHeaders['Cookie'] = req.query.cookie as string;
+      if (req.query.cookies) customHeaders['Cookie'] = req.query.cookies as string;
 
       let parsedTarget: URL;
       try {
@@ -192,6 +194,22 @@ async function startServer() {
         } catch (e) {
           lastError = e;
         }
+      }
+
+      // Diagnostic probe mode: returns json report of the upstream response
+      if (req.query.test === '1' || req.path === '/api/proxy/test') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Headers', '*');
+        res.setHeader('Content-Type', 'application/json');
+        return res.json({
+          ok: !!(response && response.ok),
+          status: response?.status || 502,
+          statusText: response?.statusText || (lastError?.message || 'Upstream Error'),
+          contentType: response?.headers.get('content-type') || 'unknown',
+          contentLength: response?.headers.get('content-length') || null,
+          headersSent: strategies[0]?.headers || {},
+          headersReceived: response ? Object.fromEntries(response.headers.entries()) : {}
+        });
       }
 
       if (!response || !response.ok) {
