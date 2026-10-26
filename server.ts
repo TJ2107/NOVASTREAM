@@ -7,7 +7,8 @@ import { Readable } from 'stream';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function rewriteM3u8(content: string, baseUrl: string): string {
+function rewriteM3u8(content: string, baseUrl: string, customHeadersStr?: string): string {
+  const extraParam = customHeadersStr ? `&headers=${encodeURIComponent(customHeadersStr)}` : '';
   const lines = content.split('\n');
   return lines.map((line) => {
     const trimmed = line.trim();
@@ -18,7 +19,7 @@ function rewriteM3u8(content: string, baseUrl: string): string {
       return line.replace(/URI="([^"]+)"/g, (match, uri) => {
         try {
           const abs = new URL(uri, baseUrl).href;
-          return `URI="/api/proxy?url=${encodeURIComponent(abs)}"`;
+          return `URI="/api/proxy?url=${encodeURIComponent(abs)}${extraParam}"`;
         } catch {
           return match;
         }
@@ -28,7 +29,7 @@ function rewriteM3u8(content: string, baseUrl: string): string {
     // Segment or sub-playlist line
     try {
       const abs = new URL(trimmed, baseUrl).href;
-      return `/api/proxy?url=${encodeURIComponent(abs)}`;
+      return `/api/proxy?url=${encodeURIComponent(abs)}${extraParam}`;
     } catch {
       return line;
     }
@@ -47,14 +48,53 @@ async function startServer() {
     res.sendStatus(204);
   });
 
-  // Universal Stream & Playlist Proxy endpoint (bypasses CORS, Mixed Content, and CDN 403 blocks)
+  // Universal Stream & Playlist Proxy endpoint (bypasses CORS, Mixed Content, and CDN 403 blocks with custom stream headers)
   app.get(['/api/proxy', '/proxy'], async (req, res) => {
-    const targetUrl = req.query.url as string;
-    if (!targetUrl) {
+    const rawTargetUrl = req.query.url as string;
+    if (!rawTargetUrl) {
       return res.status(400).send('Missing url parameter');
     }
 
+    let targetUrl = rawTargetUrl;
     try {
+      let customHeaders: Record<string, string> = {};
+
+      // 1. Support pipe syntax in URL: e.g. http://server.com/live.m3u8|User-Agent=VLC&Referer=https://tv.com
+      if (rawTargetUrl.includes('|')) {
+        const parts = rawTargetUrl.split('|');
+        targetUrl = parts[0].trim();
+        try {
+          const sp = new URLSearchParams(parts[1].trim());
+          sp.forEach((val, key) => {
+            customHeaders[key] = val;
+          });
+        } catch {}
+      }
+
+      // 2. Support explicit headers parameter via query: JSON or URL encoded key=value
+      if (req.query.headers) {
+        try {
+          const rawH = req.query.headers as string;
+          if (rawH.startsWith('{')) {
+            const parsed = JSON.parse(rawH);
+            customHeaders = { ...customHeaders, ...parsed };
+          } else {
+            const sp = new URLSearchParams(rawH);
+            sp.forEach((val, key) => {
+              customHeaders[key] = val;
+            });
+          }
+        } catch (e) {
+          console.warn('Could not parse custom headers param:', e);
+        }
+      }
+
+      // Also support standalone header query parameters: userAgent, referer, origin, authorization
+      if (req.query.userAgent) customHeaders['User-Agent'] = req.query.userAgent as string;
+      if (req.query.referer) customHeaders['Referer'] = req.query.referer as string;
+      if (req.query.origin) customHeaders['Origin'] = req.query.origin as string;
+      if (req.query.authorization) customHeaders['Authorization'] = req.query.authorization as string;
+
       let parsedTarget: URL;
       try {
         parsedTarget = new URL(targetUrl);
@@ -62,8 +102,22 @@ async function startServer() {
         return res.status(400).send('Invalid url parameter');
       }
 
-      // Strategies to avoid 403 Forbidden from strict CDNs (Akamai, Cloudflare, Fastly, Infomaniak)
-      const strategies: Array<{ headers: Record<string, string> }> = [
+      // Build strategies: If custom headers are provided, they take priority #1
+      const strategies: Array<{ headers: Record<string, string> }> = [];
+
+      if (Object.keys(customHeaders).length > 0) {
+        strategies.push({
+          headers: {
+            'Accept': '*/*',
+            'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Connection': 'keep-alive',
+            ...customHeaders
+          }
+        });
+      }
+
+      // Default fallback strategies to avoid 403 Forbidden from strict CDNs (Akamai, Cloudflare, Fastly, Infomaniak)
+      strategies.push(
         // Strategy 1: VLC media player (accepted by 99% of IPTV/HLS streams without origin checks)
         {
           headers: {
@@ -99,22 +153,14 @@ async function startServer() {
             'Accept': '*/*'
           }
         },
-        // Strategy 5: La Chaîne L'Équipe specific referer
-        {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Referer': 'https://www.lequipe.fr/',
-            'Origin': 'https://www.lequipe.fr'
-          }
-        },
-        // Strategy 6: Raw Minimalist request (no referer or extra headers)
+        // Strategy 5: Raw Minimalist request (no referer or extra headers)
         {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
             'Accept': '*/*'
           }
         }
-      ];
+      );
 
       let response: Response | null = null;
       let lastError: any = null;
@@ -160,11 +206,13 @@ async function startServer() {
         contentType.includes('mpegurl') ||
         contentType.includes('m3u8');
 
+      const customHeadersStr = Object.keys(customHeaders).length > 0 ? JSON.stringify(customHeaders) : undefined;
+
       if (isM3u8) {
         const text = await response.text();
         const upper = text.toUpperCase();
         if (upper.includes('#EXTM3U') || upper.includes('#EXTINF') || upper.includes('#EXT-X-')) {
-          const rewritten = rewriteM3u8(text, targetUrl);
+          const rewritten = rewriteM3u8(text, targetUrl, customHeadersStr);
           res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
           res.setHeader('Access-Control-Allow-Origin', '*');
           res.setHeader('Access-Control-Allow-Headers', '*');
@@ -183,16 +231,17 @@ async function startServer() {
         let htmlText = await response.text();
         const parsedTarget = new URL(targetUrl);
         const baseOrigin = parsedTarget.origin;
+        const extra = customHeadersStr ? `&headers=${encodeURIComponent(customHeadersStr)}` : '';
 
         // Inject base tag or rewrite links to ensure relative assets route through /api/proxy
         htmlText = htmlText.replace(/(href|src)="([^"]+)"/g, (match, attr, val) => {
           if (val.startsWith('http://') || val.startsWith('https://')) {
-            return `${attr}="/api/proxy?url=${encodeURIComponent(val)}"`;
+            return `${attr}="/api/proxy?url=${encodeURIComponent(val)}${extra}"`;
           } else if (val.startsWith('//')) {
-            return `${attr}="/api/proxy?url=${encodeURIComponent('https:' + val)}"`;
+            return `${attr}="/api/proxy?url=${encodeURIComponent('https:' + val)}${extra}"`;
           } else if (val.startsWith('/')) {
             const absoluteUrl = `${baseOrigin}${val}`;
-            return `${attr}="/api/proxy?url=${encodeURIComponent(absoluteUrl)}"`;
+            return `${attr}="/api/proxy?url=${encodeURIComponent(absoluteUrl)}${extra}"`;
           }
           return match;
         });

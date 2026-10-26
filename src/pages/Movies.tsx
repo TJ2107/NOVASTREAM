@@ -97,6 +97,7 @@ export function Movies() {
         <div className="flex-1 w-full h-full relative overflow-hidden flex items-center justify-center">
           <VideoPlayer
             src={currentMovie.url}
+            headers={currentMovie.headers}
             type={
               currentMovie.url.includes('.m3u8')
                 ? 'hls'

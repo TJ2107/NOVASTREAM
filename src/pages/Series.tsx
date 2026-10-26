@@ -99,6 +99,7 @@ export function Series() {
         <div className="flex-1 w-full h-full relative overflow-hidden flex items-center justify-center">
           <VideoPlayer
             src={currentSeries.url}
+            headers={currentSeries.headers}
             type={
               currentSeries.url.includes('.m3u8')
                 ? 'hls'

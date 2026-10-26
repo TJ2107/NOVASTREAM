@@ -231,16 +231,37 @@ export class UrlResolver {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     const items: MediaItem[] = [];
     let currentMeta: Partial<MediaItem> = {};
+    let currentHeaders: Record<string, string> = {};
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      if (line.startsWith('#EXTINF:')) {
+      if (line.startsWith('#EXTVLCOPT:')) {
+        const opt = line.replace('#EXTVLCOPT:', '').trim();
+        if (opt.startsWith('http-user-agent=')) {
+          currentHeaders['User-Agent'] = opt.replace('http-user-agent=', '').trim();
+        } else if (opt.startsWith('http-referrer=') || opt.startsWith('http-referer=')) {
+          currentHeaders['Referer'] = opt.replace(/^http-referr?er=/, '').trim();
+        } else if (opt.startsWith('http-origin=')) {
+          currentHeaders['Origin'] = opt.replace('http-origin=', '').trim();
+        }
+      } else if (line.startsWith('#EXTHTTP:')) {
+        try {
+          const rawJson = line.replace('#EXTHTTP:', '').trim();
+          const parsed = JSON.parse(rawJson);
+          currentHeaders = { ...currentHeaders, ...parsed };
+        } catch {}
+      } else if (line.startsWith('#EXTINF:')) {
         const nameMatch = line.match(/tvg-name="([^"]*)"/) || line.match(/,(.*)$/);
         const logoMatch = line.match(/tvg-logo="([^"]*)"/);
         const groupMatch = line.match(/group-title="([^"]*)"/);
         const countryMatch = line.match(/tvg-country="([^"]*)"/);
         const languageMatch = line.match(/tvg-language="([^"]*)"/);
+        const userAgentMatch = line.match(/http-user-agent="([^"]*)"/);
+        const referrerMatch = line.match(/http-referrer="([^"]*)"/) || line.match(/http-referer="([^"]*)"/);
+
+        if (userAgentMatch?.[1]) currentHeaders['User-Agent'] = userAgentMatch[1];
+        if (referrerMatch?.[1]) currentHeaders['Referer'] = referrerMatch[1];
 
         const rawTitle = nameMatch ? (nameMatch[1] || nameMatch[0]).replace(/^,/, '').trim() : `Canal ${items.length + 1}`;
         const group = groupMatch?.[1] || 'Général';
@@ -263,7 +284,18 @@ export class UrlResolver {
           language: languageMatch?.[1]
         };
       } else if (line.startsWith('http://') || line.startsWith('https://')) {
-        const streamUrl = line;
+        let streamUrl = line;
+        
+        // Extract pipe-delimited headers if present: http://stream|User-Agent=...&Referer=...
+        if (streamUrl.includes('|')) {
+          const parts = streamUrl.split('|');
+          streamUrl = parts[0].trim();
+          try {
+            const sp = new URLSearchParams(parts[1].trim());
+            sp.forEach((v, k) => { currentHeaders[k] = v; });
+          } catch {}
+        }
+
         const isAudio = /\.(mp3|aac|ogg|flac|m4a|pls)(\?|$)/i.test(streamUrl);
         const isVOD = /\.(mp4|mkv|webm|avi)(\?|$)/i.test(streamUrl);
 
@@ -271,11 +303,17 @@ export class UrlResolver {
         if (isAudio) type = 'radio';
         else if (isVOD) type = 'movie';
 
+        const finalHeaders = Object.keys(currentHeaders).length > 0 ? { ...currentHeaders } : undefined;
+
         items.push({
           id: `m3u-${items.length + 1}-${Date.now().toString(36)}`,
           type,
           title: currentMeta.title || `Flux ${items.length + 1}`,
           url: streamUrl,
+          headers: finalHeaders,
+          userAgent: finalHeaders?.['User-Agent'],
+          referer: finalHeaders?.['Referer'],
+          origin: finalHeaders?.['Origin'],
           logo: currentMeta.logo,
           group: currentMeta.group || 'Général',
           category: currentMeta.category || 'general',
@@ -284,6 +322,7 @@ export class UrlResolver {
         });
 
         currentMeta = {};
+        currentHeaders = {};
       }
     }
 

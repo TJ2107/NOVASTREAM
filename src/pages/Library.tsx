@@ -14,7 +14,10 @@ import {
   FileText,
   AlertCircle,
   CheckCircle2,
-  RotateCcw
+  RotateCcw,
+  Sliders,
+  ShieldCheck,
+  X
 } from 'lucide-react';
 import { useAppStore, type MediaType, type MediaItem } from '../store/useAppStore';
 import { useAudioStore } from '../store/useAudioStore';
@@ -26,6 +29,7 @@ export function Library() {
   const {
     sources,
     removeSource,
+    updateSource,
     exportPlaylists,
     importPlaylists,
     addMultipleSources,
@@ -38,6 +42,7 @@ export function Library() {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<MediaItem | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -280,6 +285,22 @@ export function Library() {
                   <span className="text-[9px] px-1.5 py-0 rounded-full bg-white/5 border border-white/10 text-white/60 font-mono uppercase">
                     {item.type}
                   </span>
+                  {item.headers && Object.keys(item.headers).length > 0 && (
+                    <span className="text-[9px] px-1.5 py-0 rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-300 font-mono flex items-center gap-1">
+                      <ShieldCheck className="w-2.5 h-2.5 text-purple-400" />
+                      <span>
+                        {item.headers['User-Agent']?.includes('VLC')
+                          ? 'VLC'
+                          : item.headers['User-Agent']?.includes('TiviMate')
+                          ? 'TiviMate'
+                          : item.headers['User-Agent']?.includes('AppleCoreMedia')
+                          ? 'Apple'
+                          : item.headers['User-Agent']?.includes('Chrome')
+                          ? 'Chrome'
+                          : 'En-têtes'}
+                      </span>
+                    </span>
+                  )}
                 </div>
                 <p className="text-[10px] text-white/40 truncate font-mono mt-0.5">{item.url}</p>
                 {item.group && (
@@ -297,6 +318,17 @@ export function Library() {
                   title="Lancer la lecture"
                 >
                   <Play className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingItem(item);
+                  }}
+                  className="p-1.5 rounded-lg glass hover:bg-white/10 text-white/60 hover:text-purple-300 transition"
+                  title="Configurer les en-têtes HTTP de ce flux (User-Agent, Referer, jeton)"
+                >
+                  <Sliders className="w-3.5 h-3.5" />
                 </button>
 
                 <a
@@ -369,6 +401,184 @@ export function Library() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
       />
+
+      {/* Edit Headers Modal */}
+      {editingItem && (
+        <EditItemHeadersModal
+          item={editingItem}
+          onClose={() => setEditingItem(null)}
+          onSave={(headers) => {
+            updateSource(editingItem.id, {
+              headers,
+              userAgent: headers?.['User-Agent'],
+              referer: headers?.['Referer'],
+              origin: headers?.['Origin']
+            });
+            setEditingItem(null);
+            setStatusMessage(`En-têtes mis à jour pour ${editingItem.title}`);
+            setTimeout(() => setStatusMessage(null), 3000);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditItemHeadersModal({
+  item,
+  onClose,
+  onSave
+}: {
+  item: MediaItem;
+  onClose: () => void;
+  onSave: (headers?: Record<string, string>) => void;
+}) {
+  const [userAgent, setUserAgent] = useState(item.headers?.['User-Agent'] || item.userAgent || '');
+  const [referer, setReferer] = useState(item.headers?.['Referer'] || item.referer || '');
+  const [origin, setOrigin] = useState(item.headers?.['Origin'] || item.origin || '');
+  const [authorization, setAuthorization] = useState(item.headers?.['Authorization'] || '');
+
+  const handleSave = () => {
+    const built: Record<string, string> = {};
+    if (userAgent.trim()) built['User-Agent'] = userAgent.trim();
+    if (referer.trim()) built['Referer'] = referer.trim();
+    if (origin.trim()) built['Origin'] = origin.trim();
+    if (authorization.trim()) built['Authorization'] = authorization.trim();
+    onSave(Object.keys(built).length > 0 ? built : undefined);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="bg-[#12121a] border border-white/20 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-purple-400" />
+            <div>
+              <h3 className="text-sm font-bold text-white">En-têtes HTTP de la Source</h3>
+              <p className="text-[10px] text-white/50 truncate max-w-[280px]">{item.title}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Presets */}
+        <div>
+          <span className="text-[10px] font-semibold text-white/60 block mb-1.5 uppercase tracking-wider">
+            Profils Rapides
+          </span>
+          <div className="grid grid-cols-3 gap-1.5">
+            {[
+              { label: 'Standard', ua: '' },
+              { label: 'VLC Player', ua: 'VLC/3.0.20 LibVLC/3.0.20' },
+              { label: 'TiviMate', ua: 'TiviMate/4.7.0 (Android TV)' },
+              { label: 'Apple TV', ua: 'AppleCoreMedia/1.0.0.19F72 (iPad; U; CPU OS 15_5 like Mac OS X; fr_fr)' },
+              { label: 'Chrome PC', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' }
+            ].map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => setUserAgent(p.ua)}
+                className="px-2 py-1.5 rounded-lg glass text-[10px] font-medium text-white/80 hover:text-white hover:bg-white/10 transition border border-white/5 truncate"
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Inputs */}
+        <div className="space-y-2.5 text-xs">
+          <div>
+            <label className="block text-[10px] font-semibold text-white/80 mb-1">
+              User-Agent (Agent utilisateur)
+            </label>
+            <input
+              type="text"
+              value={userAgent}
+              onChange={(e) => setUserAgent(e.target.value)}
+              placeholder="Ex: VLC/3.0.20 LibVLC/3.0.20"
+              className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-purple-500 outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[10px] font-semibold text-white/80 mb-1">
+                Referer
+              </label>
+              <input
+                type="text"
+                value={referer}
+                onChange={(e) => setReferer(e.target.value)}
+                placeholder="https://domaine.com/"
+                className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-purple-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-semibold text-white/80 mb-1">
+                Origin
+              </label>
+              <input
+                type="text"
+                value={origin}
+                onChange={(e) => setOrigin(e.target.value)}
+                placeholder="https://domaine.com"
+                className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-purple-500 outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-semibold text-white/80 mb-1">
+              Authorization (Jeton)
+            </label>
+            <input
+              type="text"
+              value={authorization}
+              onChange={(e) => setAuthorization(e.target.value)}
+              placeholder="Bearer eyJ..."
+              className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-purple-500 outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t border-white/10">
+          <button
+            type="button"
+            onClick={() => {
+              setUserAgent('');
+              setReferer('');
+              setOrigin('');
+              setAuthorization('');
+            }}
+            className="px-3 py-1.5 text-xs text-white/60 hover:text-white transition"
+          >
+            Effacer
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3.5 py-1.5 rounded-xl glass hover:bg-white/10 text-xs font-semibold text-white transition"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition shadow-lg shadow-purple-900/40"
+            >
+              Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

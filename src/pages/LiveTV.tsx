@@ -150,6 +150,7 @@ export function LiveTV() {
           <VideoPlayer
             src={currentChannel.url}
             alternativeUrls={currentChannel.alternativeUrls}
+            headers={currentChannel.headers}
             poster={currentChannel.logo}
             title={currentChannel.title}
             autoPlay

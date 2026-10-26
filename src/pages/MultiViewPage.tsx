@@ -290,7 +290,7 @@ function MultiViewSlot({
   const [hasError, setHasError] = useState(false);
 
   const channel = slot.channel;
-  const effectiveSrc = channel ? secureUrl(channel.url) : '';
+  const effectiveSrc = channel ? secureUrl(channel.url, channel.headers) : '';
 
   useEffect(() => {
     const video = videoRef.current;
@@ -308,7 +308,7 @@ function MultiViewSlot({
         lowLatencyMode: true,
         xhrSetup: (xhr, url) => {
           if ((url.startsWith('http://') || url.startsWith('https://')) && !url.includes('/proxy') && !url.includes('/api/proxy')) {
-            xhr.open('GET', secureUrl(url), true);
+            xhr.open('GET', secureUrl(url, channel.headers), true);
           }
         }
       });

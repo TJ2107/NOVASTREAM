@@ -13,7 +13,11 @@ import {
   Tv2,
   Radio,
   Globe,
-  Layers
+  Layers,
+  Sliders,
+  ChevronDown,
+  ChevronUp,
+  ShieldCheck
 } from 'lucide-react';
 import { UrlResolver, SUPPORTED_STREAMING_PORTALS } from '../../services/UrlResolver';
 import { useAppStore, type MediaItem, type MediaType } from '../../store/useAppStore';
@@ -30,6 +34,14 @@ export function AddSourceModal({ isOpen, onClose, onAdded }: Props) {
   const [customTitle, setCustomTitle] = useState('');
   const [mediaType, setMediaType] = useState<MediaType>('live');
   const [selectedPortal, setSelectedPortal] = useState<string | null>(null);
+
+  // Custom HTTP Headers state
+  const [showAdvancedHeaders, setShowAdvancedHeaders] = useState(false);
+  const [headerPreset, setHeaderPreset] = useState<'default' | 'vlc' | 'tivimate' | 'chrome' | 'apple' | 'custom'>('default');
+  const [userAgent, setUserAgent] = useState('');
+  const [referer, setReferer] = useState('');
+  const [origin, setOrigin] = useState('');
+  const [authorization, setAuthorization] = useState('');
   
   // Xtream Codes
   const [xtreamUrl, setXtreamUrl] = useState('');
@@ -42,6 +54,55 @@ export function AddSourceModal({ isOpen, onClose, onAdded }: Props) {
 
   if (!isOpen) return null;
 
+  // Handle URL change with auto-detection of pipe-separated headers: url|User-Agent=...&Referer=...
+  const handleUrlChange = (val: string) => {
+    if (val.includes('|')) {
+      const [cleanUrl, rawParams] = val.split('|');
+      setUrl(cleanUrl.trim());
+      try {
+        const sp = new URLSearchParams(rawParams.trim());
+        const ua = sp.get('User-Agent') || sp.get('user-agent');
+        const ref = sp.get('Referer') || sp.get('referer');
+        const orig = sp.get('Origin') || sp.get('origin');
+        const auth = sp.get('Authorization') || sp.get('authorization');
+        if (ua) setUserAgent(ua);
+        if (ref) setReferer(ref);
+        if (orig) setOrigin(orig);
+        if (auth) setAuthorization(auth);
+        setShowAdvancedHeaders(true);
+        setHeaderPreset('custom');
+      } catch {}
+    } else {
+      setUrl(val);
+    }
+  };
+
+  const handleHeaderPresetChange = (preset: 'default' | 'vlc' | 'tivimate' | 'chrome' | 'apple' | 'custom') => {
+    setHeaderPreset(preset);
+    switch (preset) {
+      case 'vlc':
+        setUserAgent('VLC/3.0.20 LibVLC/3.0.20');
+        break;
+      case 'tivimate':
+        setUserAgent('TiviMate/4.7.0 (Android TV)');
+        break;
+      case 'chrome':
+        setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+        break;
+      case 'apple':
+        setUserAgent('AppleCoreMedia/1.0.0.19F72 (iPad; U; CPU OS 15_5 like Mac OS X; fr_fr)');
+        break;
+      case 'default':
+        setUserAgent('');
+        setReferer('');
+        setOrigin('');
+        setAuthorization('');
+        break;
+      case 'custom':
+        break;
+    }
+  };
+
   const handleResolve = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!url.trim()) {
@@ -52,6 +113,13 @@ export function AddSourceModal({ isOpen, onClose, onAdded }: Props) {
     setIsResolving(true);
     setError(null);
     setSuccessInfo(null);
+
+    const builtHeaders: Record<string, string> = {};
+    if (userAgent.trim()) builtHeaders['User-Agent'] = userAgent.trim();
+    if (referer.trim()) builtHeaders['Referer'] = referer.trim();
+    if (origin.trim()) builtHeaders['Origin'] = origin.trim();
+    if (authorization.trim()) builtHeaders['Authorization'] = authorization.trim();
+    const finalHeaders = Object.keys(builtHeaders).length > 0 ? builtHeaders : undefined;
 
     try {
       const result: any = await UrlResolver.resolve(url.trim()).catch(() => ({ type: 'unsupported' as const, url: url.trim() }));
@@ -72,6 +140,10 @@ export function AddSourceModal({ isOpen, onClose, onAdded }: Props) {
         type: finalType,
         title: customTitle.trim() || result.title || (finalType === 'series' ? 'Série TV' : finalType === 'movie' ? 'Film VOD' : finalType === 'radio' ? 'Radio Web' : 'Canal TV Direct'),
         url: result.url || url.trim(),
+        headers: finalHeaders,
+        userAgent: userAgent.trim() || undefined,
+        referer: referer.trim() || undefined,
+        origin: origin.trim() || undefined,
         logo: result.logo,
         group: result.group || (finalType === 'radio' ? 'Radio' : finalType === 'series' ? 'Séries' : finalType === 'movie' ? 'Films' : 'Personnalisé'),
         category: result.category || (finalType === 'series' || finalType === 'movie' ? 'cinema' : finalType === 'radio' ? 'music' : 'general')
@@ -89,6 +161,10 @@ export function AddSourceModal({ isOpen, onClose, onAdded }: Props) {
         type: mediaType,
         title: customTitle.trim() || 'Flux Personnalisé',
         url: url.trim(),
+        headers: finalHeaders,
+        userAgent: userAgent.trim() || undefined,
+        referer: referer.trim() || undefined,
+        origin: origin.trim() || undefined,
         group: mediaType === 'radio' ? 'Radio' : mediaType === 'series' ? 'Séries' : mediaType === 'movie' ? 'Films' : 'Personnalisé',
         category: mediaType === 'series' || mediaType === 'movie' ? 'cinema' : mediaType === 'radio' ? 'music' : 'general'
       };
@@ -345,14 +421,19 @@ export function AddSourceModal({ isOpen, onClose, onAdded }: Props) {
         {/* Content Form */}
         <form onSubmit={handleResolve} className="mt-4 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-white/80 mb-1.5">
-              URL du flux ou de la page
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-white/80">
+                URL du flux ou de la page
+              </label>
+              <span className="text-[10px] text-white/40 font-mono">
+                Syntaxe pipe acceptée : url|User-Agent=...
+              </span>
+            </div>
             <input
-              type="url"
+              type="text"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://exemple.com/live/stream.m3u8"
+              onChange={(e) => handleUrlChange(e.target.value)}
+              placeholder="https://exemple.com/live/stream.m3u8 | User-Agent=VLC..."
               className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-purple-500 focus:bg-white/10 outline-none text-sm transition font-mono"
             />
           </div>
@@ -386,6 +467,118 @@ export function AddSourceModal({ isOpen, onClose, onAdded }: Props) {
                 <option value="radio">📻 Radio / Audio</option>
               </select>
             </div>
+          </div>
+
+          {/* Custom Stream Headers Configuration (Bypass 403 / CORS) */}
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden transition-all">
+            <button
+              type="button"
+              onClick={() => setShowAdvancedHeaders(!showAdvancedHeaders)}
+              className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-white/[0.04] transition"
+            >
+              <div className="flex items-center gap-2">
+                <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="text-xs font-semibold text-white/90">
+                  En-têtes HTTP personnalisés (Bypass FAI / IPTV)
+                </span>
+                {(userAgent || referer || origin || authorization) && (
+                  <span className="px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 text-[9px] font-mono font-bold">
+                    Actif
+                  </span>
+                )}
+              </div>
+              <div className="text-white/40">
+                {showAdvancedHeaders ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </div>
+            </button>
+
+            {showAdvancedHeaders && (
+              <div className="p-3.5 pt-1 space-y-3 border-t border-white/5 animate-fade-in text-xs">
+                <div>
+                  <label className="block text-[11px] font-medium text-white/60 mb-1">
+                    Profil prédéfini (User-Agent) :
+                  </label>
+                  <select
+                    value={headerPreset}
+                    onChange={(e) => handleHeaderPresetChange(e.target.value as any)}
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-[#141432] border border-white/10 text-white text-xs outline-none"
+                  >
+                    <option value="default">Défaut (Standard)</option>
+                    <option value="vlc">VLC Media Player (Recommandé IPTV)</option>
+                    <option value="tivimate">TiviMate IPTV (Android TV)</option>
+                    <option value="chrome">Navigateur Chrome Desktop</option>
+                    <option value="apple">AppleCoreMedia (iPad / Safari)</option>
+                    <option value="custom">Personnalisé (manuel)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-white/60 mb-1">
+                    User-Agent :
+                  </label>
+                  <input
+                    type="text"
+                    value={userAgent}
+                    onChange={(e) => {
+                      setUserAgent(e.target.value);
+                      setHeaderPreset('custom');
+                    }}
+                    placeholder="Ex: VLC/3.0.20 ou TiviMate/4.7.0"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/30 text-xs font-mono"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-medium text-white/60 mb-1">
+                      Referer :
+                    </label>
+                    <input
+                      type="text"
+                      value={referer}
+                      onChange={(e) => {
+                        setReferer(e.target.value);
+                        setHeaderPreset('custom');
+                      }}
+                      placeholder="Ex: https://provider.tv/"
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/30 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-medium text-white/60 mb-1">
+                      Origin :
+                    </label>
+                    <input
+                      type="text"
+                      value={origin}
+                      onChange={(e) => {
+                        setOrigin(e.target.value);
+                        setHeaderPreset('custom');
+                      }}
+                      placeholder="Ex: https://provider.tv"
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/30 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-white/60 mb-1">
+                    Authorization / Jeton (Optionnel) :
+                  </label>
+                  <input
+                    type="text"
+                    value={authorization}
+                    onChange={(e) => {
+                      setAuthorization(e.target.value);
+                      setHeaderPreset('custom');
+                    }}
+                    placeholder="Ex: Bearer eyJhbGciOi... ou clé d'accès"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/30 text-xs font-mono"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Feedback messages */}

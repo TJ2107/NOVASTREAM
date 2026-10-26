@@ -11,6 +11,10 @@ export interface MediaItem {
   name?: string;
   url: string;
   alternativeUrls?: string[];
+  headers?: Record<string, string>;
+  userAgent?: string;
+  referer?: string;
+  origin?: string;
   logo?: string;
   group?: string;
   category?: MediaCategory;
@@ -657,6 +661,7 @@ interface AppState {
   audioEqualizer: 'flat' | 'cinema' | 'voice' | 'music';
   
   addSource: (item: MediaItem) => void;
+  updateSource: (id: string, updates: Partial<MediaItem>) => void;
   addMultipleSources: (items: MediaItem[]) => void;
   removeSource: (id: string) => void;
   toggleFavorite: (id: string) => void;
@@ -804,6 +809,10 @@ export const useAppStore = create<AppState>()(
         const remaining = s.sources.filter(i => i.id !== item.id && !(i.url === item.url && i.type === item.type));
         return { sources: [item, ...remaining] };
       }),
+
+      updateSource: (id, updates) => set((s) => ({
+        sources: s.sources.map((item) => (item.id === id ? { ...item, ...updates } : item))
+      })),
 
       addMultipleSources: (items) => set((s) => {
         return { sources: dedupeSources([...items, ...s.sources]) };

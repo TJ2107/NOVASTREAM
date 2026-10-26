@@ -4,21 +4,44 @@
  * Solution 2 : Proxy HTTPS Cloudflare Worker / Serveur Node (/proxy ou /api/proxy) avec réécriture m3u8
  */
 
-export const secureUrl = (u: string): string => {
+export const secureUrl = (u: string, headers?: Record<string, string>): string => {
   if (!u) return u;
 
-  // Si l'URL passe déjà par notre proxy
-  if (u.startsWith('/proxy') || u.startsWith('/api/proxy')) {
-    return u;
+  // Extract any pipe syntax present in the URL (e.g. url|User-Agent=VLC&Referer=...)
+  let pipeHeaders: Record<string, string> = {};
+  let cleanUrl = u;
+  if (u.includes('|')) {
+    const parts = u.split('|');
+    cleanUrl = parts[0].trim();
+    try {
+      const sp = new URLSearchParams(parts[1].trim());
+      sp.forEach((v, k) => { pipeHeaders[k] = v; });
+    } catch {}
   }
 
-  // Si on est sur une page en HTTPS et que le flux est en HTTP (évite le blocage Mixed Content du navigateur)
-  const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-  if (isHttps && u.startsWith('http://')) {
-    return `/proxy?url=${encodeURIComponent(u)}`;
+  const combinedHeaders = { ...pipeHeaders, ...(headers || {}) };
+  const hasCustomHeaders = Object.keys(combinedHeaders).length > 0;
+
+  // If already proxied
+  if (cleanUrl.startsWith('/proxy') || cleanUrl.startsWith('/api/proxy')) {
+    if (hasCustomHeaders && !cleanUrl.includes('headers=')) {
+      const separator = cleanUrl.includes('?') ? '&' : '?';
+      return `${cleanUrl}${separator}headers=${encodeURIComponent(JSON.stringify(combinedHeaders))}`;
+    }
+    return cleanUrl;
   }
 
-  return u;
+  // If stream requires custom headers, it MUST go through proxy to bypass browser forbidden header restrictions
+  if (hasCustomHeaders) {
+    return `/proxy?url=${encodeURIComponent(cleanUrl)}&headers=${encodeURIComponent(JSON.stringify(combinedHeaders))}`;
+  }
+
+  // Force server proxy for unencrypted HTTP streams
+  if (cleanUrl.startsWith('http://')) {
+    return `/proxy?url=${encodeURIComponent(cleanUrl)}`;
+  }
+
+  return cleanUrl;
 };
 
 /**

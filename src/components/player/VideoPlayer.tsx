@@ -23,7 +23,8 @@ import {
   Lock,
   Server,
   Zap,
-  MessageSquareText
+  MessageSquareText,
+  X
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { SUPPORTED_STREAMING_PORTALS } from '../../services/UrlResolver';
@@ -45,6 +46,7 @@ interface Props {
   onProgress?: (time: number, duration?: number) => void;
   onEnded?: () => void;
   alternativeUrls?: string[];
+  headers?: Record<string, string>;
 }
 
 export function VideoPlayer({
@@ -57,11 +59,39 @@ export function VideoPlayer({
   initialTime = 0,
   onProgress,
   onEnded,
-  alternativeUrls
+  alternativeUrls,
+  headers
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+
+  const [customHeaders, setCustomHeaders] = useState<Record<string, string>>(headers || {});
+  const [isHeadersModalOpen, setIsHeadersModalOpen] = useState(false);
+  const [editUserAgent, setEditUserAgent] = useState(headers?.['User-Agent'] || headers?.['user-agent'] || '');
+  const [editReferer, setEditReferer] = useState(headers?.['Referer'] || headers?.['referer'] || '');
+  const [editOrigin, setEditOrigin] = useState(headers?.['Origin'] || headers?.['origin'] || '');
+  const [editAuth, setEditAuth] = useState(headers?.['Authorization'] || headers?.['authorization'] || '');
+
+  useEffect(() => {
+    const nextH = headers || {};
+    setCustomHeaders(nextH);
+    setEditUserAgent(nextH['User-Agent'] || nextH['user-agent'] || '');
+    setEditReferer(nextH['Referer'] || nextH['referer'] || '');
+    setEditOrigin(nextH['Origin'] || nextH['origin'] || '');
+    setEditAuth(nextH['Authorization'] || nextH['authorization'] || '');
+  }, [headers]);
+
+  const hasCustomHeaders = Object.keys(customHeaders).length > 0;
+  const headerBadgeLabel = useMemo(() => {
+    const ua = customHeaders['User-Agent'] || customHeaders['user-agent'] || '';
+    if (ua.includes('VLC')) return 'VLC';
+    if (ua.includes('TiviMate')) return 'TIVIMATE';
+    if (ua.includes('AppleCoreMedia')) return 'APPLE';
+    if (ua.includes('Chrome')) return 'CHROME';
+    if (hasCustomHeaders) return 'PERSO';
+    return 'EN-TÊTES';
+  }, [customHeaders, hasCustomHeaders]);
 
   const initialTimeRef = useRef(initialTime);
   const autoPlayRef = useRef(autoPlay);
@@ -238,10 +268,11 @@ export function VideoPlayer({
       return effectiveSrc.replace(/^http:\/\//i, 'https://');
     }
     if (streamSecurityMode === 'worker-proxy') {
-      return `/proxy?url=${encodeURIComponent(effectiveSrc)}`;
+      const headersParam = Object.keys(customHeaders).length > 0 ? `&headers=${encodeURIComponent(JSON.stringify(customHeaders))}` : '';
+      return `/proxy?url=${encodeURIComponent(effectiveSrc)}${headersParam}`;
     }
-    return secureUrl(effectiveSrc);
-  }, [effectiveSrc, streamSecurityMode]);
+    return secureUrl(effectiveSrc, customHeaders);
+  }, [effectiveSrc, streamSecurityMode, customHeaders]);
 
   const handleTestHttps = async () => {
     setIsTestingHttps(true);
@@ -299,12 +330,8 @@ export function VideoPlayer({
         fragLoadingTimeOut: 20000,
         fragLoadingMaxRetry: 6,
         xhrSetup: (xhr, url) => {
-          if (streamSecurityMode === 'worker-proxy') {
-            if (!url.includes('/proxy') && !url.includes('/api/proxy')) {
-              xhr.open('GET', `/proxy?url=${encodeURIComponent(url)}`, true);
-            }
-          } else if ((url.startsWith('http://') || url.startsWith('https://')) && !url.includes('/proxy') && !url.includes('/api/proxy')) {
-            xhr.open('GET', secureUrl(url), true);
+          if (!url.includes('/proxy') && !url.includes('/api/proxy')) {
+            xhr.open('GET', secureUrl(url, customHeaders), true);
           }
         }
       });
@@ -945,6 +972,23 @@ export function VideoPlayer({
               )}
             </button>
 
+            {/* Custom HTTP Headers Badge & Quick Switcher */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsHeadersModalOpen(true);
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold transition border shadow-sm ${
+                hasCustomHeaders
+                  ? 'bg-purple-950/90 border-purple-400/60 text-purple-300 hover:text-white hover:border-purple-300'
+                  : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
+              }`}
+              title="Configuration des en-têtes HTTP (User-Agent IPTV, Referer, jetons anti-blocage)"
+            >
+              <ShieldCheck className={`w-3 h-3 ${hasCustomHeaders ? 'text-purple-400' : 'text-white/40'}`} />
+              <span>{headerBadgeLabel}</span>
+            </button>
+
             {/* Stream Server Switcher */}
             {streamCandidates.length > 1 && (
               <button
@@ -1205,6 +1249,52 @@ export function VideoPlayer({
                         </div>
                       </div>
                     )}
+
+                    <div className="pt-2 border-t border-white/10">
+                      <span className="font-semibold text-white/70 block mb-1">En-têtes HTTP (IPTV)</span>
+                      <div className="grid grid-cols-2 gap-1 mb-1.5">
+                        {[
+                          { id: 'default', label: 'Standard', ua: '' },
+                          { id: 'vlc', label: 'VLC', ua: 'VLC/3.0.20 LibVLC/3.0.20' },
+                          { id: 'tivimate', label: 'TiviMate', ua: 'TiviMate/4.7.0 (Android TV)' },
+                          { id: 'chrome', label: 'Chrome', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' }
+                        ].map((p) => {
+                          const currentUa = customHeaders['User-Agent'] || customHeaders['user-agent'] || '';
+                          const isSelected = p.id === 'default'
+                            ? !currentUa
+                            : currentUa.includes(p.label === 'Chrome' ? 'Chrome/124' : p.label);
+                          return (
+                            <button
+                              key={p.id}
+                              onClick={() => {
+                                const next = { ...customHeaders };
+                                if (p.ua) {
+                                  next['User-Agent'] = p.ua;
+                                } else {
+                                  delete next['User-Agent'];
+                                  delete next['user-agent'];
+                                }
+                                setCustomHeaders(next);
+                              }}
+                              className={`px-1.5 py-1 rounded text-center font-mono text-[10px] truncate transition ${
+                                isSelected ? 'bg-purple-600 text-white font-bold shadow' : 'glass hover:bg-white/10 text-white/80'
+                              }`}
+                            >
+                              {p.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowSettings(false);
+                          setIsHeadersModalOpen(true);
+                        }}
+                        className="w-full py-1 text-center text-[10px] text-cyan-400 hover:text-cyan-300 font-semibold underline block"
+                      >
+                        En-têtes avancés...
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1282,6 +1372,159 @@ export function VideoPlayer({
         }}
         currentTime={currentTime}
       />
+
+      {/* Custom HTTP Headers Modal */}
+      {isHeadersModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#12121a] border border-white/20 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-purple-400" />
+                <h3 className="text-base font-bold text-white">En-têtes HTTP du Flux</h3>
+              </div>
+              <button
+                onClick={() => setIsHeadersModalOpen(false)}
+                className="p-1 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-white/70 leading-relaxed">
+              Certains serveurs IPTV bloquent les navigateurs web (Erreur 403 / Forbidden). Sélectionnez un profil ou entrez vos valeurs personnalisées pour les injecter côté serveur via le Proxy Nova.
+            </p>
+
+            {/* Quick Presets */}
+            <div>
+              <span className="text-[11px] font-semibold text-white/60 block mb-1.5 uppercase tracking-wider">
+                Profils Rapides
+              </span>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { label: 'Standard', ua: '', ref: '', orig: '' },
+                  { label: 'VLC Player', ua: 'VLC/3.0.20 LibVLC/3.0.20', ref: '', orig: '' },
+                  { label: 'TiviMate', ua: 'TiviMate/4.7.0 (Android TV)', ref: '', orig: '' },
+                  { label: 'Apple TV', ua: 'AppleCoreMedia/1.0.0.19F72 (iPad; U; CPU OS 15_5 like Mac OS X; fr_fr)', ref: '', orig: '' },
+                  { label: 'Chrome PC', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36', ref: '', orig: '' }
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      setEditUserAgent(preset.ua);
+                      if (preset.ref) setEditReferer(preset.ref);
+                      if (preset.orig) setEditOrigin(preset.orig);
+                    }}
+                    className="px-2 py-1.5 rounded-lg glass text-[10px] font-medium text-white/80 hover:text-white hover:bg-white/10 transition border border-white/5 truncate"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Inputs */}
+            <div className="space-y-2.5 text-xs">
+              <div>
+                <label className="block text-[11px] font-semibold text-white/80 mb-1">
+                  User-Agent (Agent utilisateur)
+                </label>
+                <input
+                  type="text"
+                  value={editUserAgent}
+                  onChange={(e) => setEditUserAgent(e.target.value)}
+                  placeholder="Ex: VLC/3.0.20 LibVLC/3.0.20"
+                  className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-purple-500 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-white/80 mb-1">
+                    Referer (Page référente)
+                  </label>
+                  <input
+                    type="text"
+                    value={editReferer}
+                    onChange={(e) => setEditReferer(e.target.value)}
+                    placeholder="https://domaine.com/"
+                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-purple-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-white/80 mb-1">
+                    Origin
+                  </label>
+                  <input
+                    type="text"
+                    value={editOrigin}
+                    onChange={(e) => setEditOrigin(e.target.value)}
+                    placeholder="https://domaine.com"
+                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-purple-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-white/80 mb-1">
+                  Authorization (Jeton / Token)
+                </label>
+                <input
+                  type="text"
+                  value={editAuth}
+                  onChange={(e) => setEditAuth(e.target.value)}
+                  placeholder="Bearer eyJhbGciOi..."
+                  className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-purple-500 outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditUserAgent('');
+                  setEditReferer('');
+                  setEditOrigin('');
+                  setEditAuth('');
+                  setCustomHeaders({});
+                  setIsHeadersModalOpen(false);
+                }}
+                className="px-3 py-2 text-xs text-white/60 hover:text-white transition"
+              >
+                Réinitialiser
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsHeadersModalOpen(false)}
+                  className="px-3.5 py-2 rounded-xl glass hover:bg-white/10 text-xs font-semibold text-white transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const built: Record<string, string> = {};
+                    if (editUserAgent.trim()) built['User-Agent'] = editUserAgent.trim();
+                    if (editReferer.trim()) built['Referer'] = editReferer.trim();
+                    if (editOrigin.trim()) built['Origin'] = editOrigin.trim();
+                    if (editAuth.trim()) built['Authorization'] = editAuth.trim();
+                    setCustomHeaders(built);
+                    setIsHeadersModalOpen(false);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition shadow-lg shadow-purple-900/40"
+                >
+                  Appliquer au flux
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
