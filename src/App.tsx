@@ -21,6 +21,7 @@ import { AuthWidget } from './components/auth/AuthWidget';
 import { UserTour } from './components/common/UserTour';
 import { InterstitialAdModal } from './components/common/InterstitialAdModal';
 import { AdminAnnouncementBanner } from './components/common/AdminAnnouncementBanner';
+import { UpdateNotificationModal } from './components/common/UpdateNotificationModal';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
 const Home = lazyWithRetry(() => import('./pages/Home'));
@@ -205,6 +206,9 @@ export default function App() {
 
       {/* Free Plan Interstitial Ad Modal (1 minute ad every 30 minutes of viewing) */}
       <InterstitialAdModal />
+
+      {/* New Update Notification Alert Modal */}
+      <UpdateNotificationModal />
     </div>
   );
 }
