@@ -32,10 +32,14 @@ import {
   RefreshCw,
   Server,
   Lock,
-  ExternalLink
+  ExternalLink,
+  Power,
+  EyeOff,
+  Clock,
+  ArrowRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useAppStore, DEFAULT_PROXY_CONFIG, type GlobalProxyConfig } from '../store/useAppStore';
+import { useAppStore, DEFAULT_PROXY_CONFIG, VPN_SERVERS, type GlobalProxyConfig, type VPNServer } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { updateUserSubscription, activatePremiumByEmail, submitPendingPayment } from '../services/analyticsService';
 import { testProxyStreamConnection, type ProxyProbeResult } from '../services/secureStream';
@@ -66,7 +70,16 @@ export function SettingsPage() {
     setSubscriptionPlan,
     proxyConfig,
     setProxyConfig,
-    resetProxyConfig
+    resetProxyConfig,
+    vpnEnabled,
+    vpnServer,
+    vpnProtocol,
+    vpnKillSwitch,
+    vpnConnectedSince,
+    toggleVPN,
+    setVPNServer,
+    setVPNProtocol,
+    setVPNKillSwitch
   } = useAppStore();
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -90,6 +103,50 @@ export function SettingsPage() {
     txRef: string;
     autoApproved?: boolean;
   } | null>(null);
+
+  const [vpnConnectedTime, setVpnConnectedTime] = useState<string>('00:00:00');
+  const [vpnTestResult, setVpnTestResult] = useState<{ domain: string; status: 'ok' | 'blocked'; latency: number } | null>(null);
+  const [isVpnTesting, setIsVpnTesting] = useState(false);
+
+  useEffect(() => {
+    if (!vpnEnabled || !vpnConnectedSince) {
+      setVpnConnectedTime('00:00:00');
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const diffSecs = Math.floor((Date.now() - vpnConnectedSince) / 1000);
+      const h = Math.floor(diffSecs / 3600);
+      const m = Math.floor((diffSecs % 3600) / 60);
+      const s = diffSecs % 60;
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      setVpnConnectedTime(`${pad(h)}:${pad(m)}:${pad(s)}`);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [vpnEnabled, vpnConnectedSince]);
+
+  const handleTestDomain = async (domain: string) => {
+    setIsVpnTesting(true);
+    setVpnTestResult(null);
+    const start = Date.now();
+    try {
+      const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${domain}&type=A`, {
+        headers: { accept: 'application/dns-json' }
+      });
+      const data = await res.json();
+      const latency = Date.now() - start;
+      if (data.Answer && data.Answer.length > 0) {
+        setVpnTestResult({ domain, status: 'ok', latency });
+      } else {
+        setVpnTestResult({ domain, status: 'blocked', latency });
+      }
+    } catch {
+      setVpnTestResult({ domain, status: 'blocked', latency: Date.now() - start });
+    } finally {
+      setIsVpnTesting(false);
+    }
+  };
 
   const shareMessages = {
     x: "🎬 Découvrez NOVASTREAM, la plateforme ultime de streaming cinéma, TV en direct et Live Watch Party ! Films, séries et flux HD sans interruption. 🚀 Rejoignez-moi dès maintenant : https://novastream.app #Novastream #Streaming #Cinema",
@@ -129,7 +186,7 @@ export function SettingsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-3xl font-black text-white flex items-center gap-3">
+          <h1 className="text-base sm:text-lg md:text-xl font-black text-white flex items-center gap-2.5">
             <SettingsIcon className="w-6 h-6 md:w-8 md:h-8 text-[#FF5A5F]" />
             <span>Paramètres</span>
           </h1>
@@ -715,6 +772,208 @@ export function SettingsPage() {
           </div>
         </div>
       )}
+
+
+      {/* Section VPN & Sécurité Chiffrée */}
+      <div className="glass-strong rounded-3xl p-6 md:p-8 border border-emerald-500/30 space-y-6 shadow-2xl relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold border border-emerald-500/30">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base md:text-xl font-black text-white flex items-center gap-2">
+                <span>🛡️ Bouclier VPN & Sécurité Suissse</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40 font-bold">
+                  CH 🇨🇭
+                </span>
+              </h2>
+              <p className="text-[11px] md:text-xs text-white/60">
+                Chiffrement instantané, contournement des blocages FAI et protection nomade (Wi-Fi public, café, hôtel, train).
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setVPNKillSwitch(!vpnKillSwitch)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition border ${
+                vpnKillSwitch
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                  : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
+              }`}
+            >
+              Kill Switch: {vpnKillSwitch ? 'ON' : 'OFF'}
+            </button>
+          </div>
+        </div>
+
+        {/* User's quote banner */}
+        <blockquote className="p-3.5 rounded-2xl bg-black/40 border border-emerald-500/20 text-white/90 text-xs leading-relaxed font-medium italic backdrop-blur-md">
+          « Un tap, et votre connexion est chiffrée : au café, à l'hôtel, dans le train. Changez de pays, passez les blocages. Serveurs suisses, pas de logs, pas de bridage. »
+        </blockquote>
+
+        {/* Main One-Tap Power & Server Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          {/* One-Tap Toggle Box */}
+          <div className="lg:col-span-5 glass rounded-2xl p-6 border border-white/10 flex flex-col items-center justify-between text-center relative shadow-xl">
+            <div className="space-y-1 mb-4">
+              <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest font-mono block">
+                Statut de la Protection
+              </span>
+              <div className={`text-lg font-black transition-colors ${vpnEnabled ? 'text-emerald-400' : 'text-white/40'}`}>
+                {vpnEnabled ? 'PROTÉGÉ & CHIFFRÉ' : 'DÉCONNECTÉ'}
+              </div>
+              <p className="text-[10px] text-white/60">
+                {vpnEnabled
+                  ? `Connecté à ${vpnServer.flag} ${vpnServer.country} (${vpnServer.city})`
+                  : 'Appuyez pour activer le tunnel chiffré'}
+              </p>
+            </div>
+
+            {/* Giant One-Tap Button */}
+            <div className="relative my-2">
+              {vpnEnabled && (
+                <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping pointer-events-none" />
+              )}
+              <button
+                onClick={toggleVPN}
+                className={`relative w-28 h-28 rounded-full flex flex-col items-center justify-center transition-all transform active:scale-95 shadow-2xl border-4 cursor-pointer ${
+                  vpnEnabled
+                    ? 'bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 border-emerald-300 text-white shadow-emerald-600/50 hover:scale-105'
+                    : 'bg-gradient-to-br from-[#1a1a36] to-[#0d0d24] border-white/10 text-white/40 hover:text-white hover:border-white/30 hover:scale-105 shadow-black/60'
+                }`}
+                title={vpnEnabled ? 'Désactiver le VPN' : 'Activer le VPN en 1 tap'}
+              >
+                <Power className={`w-8 h-8 mb-1 ${vpnEnabled ? 'animate-pulse' : ''}`} />
+                <span className="text-[9px] font-black tracking-wider uppercase">
+                  {vpnEnabled ? 'DÉCONNECTER' : 'ACTIVER'}
+                </span>
+              </button>
+            </div>
+
+            {/* Live stats */}
+            <div className="w-full grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-white/10 text-[10px]">
+              <div className="glass p-2 rounded-xl text-center">
+                <span className="text-[8px] text-white/40 uppercase block mb-0.5">Durée active</span>
+                <span className="font-mono font-bold text-white text-[11px]">{vpnConnectedTime}</span>
+              </div>
+              <div className="glass p-2 rounded-xl text-center">
+                <span className="text-[8px] text-white/40 uppercase block mb-0.5">IP Virtuelle</span>
+                <span className="font-mono font-bold text-cyan-300 text-[11px]">
+                  {vpnEnabled ? vpnServer.ip : 'Masquée'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Server Picker */}
+          <div className="lg:col-span-7 glass rounded-2xl p-5 border border-white/10 flex flex-col justify-between shadow-xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <div>
+                <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Server className="w-4 h-4 text-emerald-400" />
+                  <span>Emplacement des Serveurs</span>
+                </h3>
+                <p className="text-[10px] text-white/50">Haute vitesse • Juridiction Suisse 🇨🇭</p>
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                7 serveurs actifs
+              </span>
+            </div>
+
+            {/* List */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
+              {VPN_SERVERS.map((server) => {
+                const isSelected = vpnServer.id === server.id;
+                return (
+                  <button
+                    key={server.id}
+                    onClick={() => {
+                      setVPNServer(server);
+                      if (!vpnEnabled) toggleVPN();
+                    }}
+                    className={`p-2 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${
+                      isSelected
+                        ? 'bg-emerald-950/80 border-emerald-400 text-white shadow-lg ring-1 ring-emerald-400/50'
+                        : 'glass hover:bg-white/10 border-white/5 text-white/80 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-base leading-none flex-shrink-0">{server.flag}</span>
+                      <div className="min-w-0">
+                        <div className="font-bold text-[10px] truncate flex items-center gap-1">
+                          <span>{server.city}</span>
+                          {server.isSwiss && (
+                            <span className="text-[8px] px-1 py-0 rounded bg-red-600/30 text-red-200 border border-red-500/30 font-bold">
+                              CH
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[9px] text-white/40 font-mono mt-0.5 truncate">{server.ip}</div>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-mono text-emerald-400 font-bold pl-2 flex-shrink-0">
+                      {server.ping}ms
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* DNS Tester */}
+            <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-white flex items-center gap-1">
+                  <Zap className="w-3 h-3 text-cyan-400" />
+                  <span>Tester le déblocage DNS :</span>
+                </span>
+                {vpnTestResult && (
+                  <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Résolu en {vpnTestResult.latency}ms
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {['vavoo.to', 'oha.to', 'huhu.to', 'kool.ws'].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => handleTestDomain(d)}
+                    disabled={isVpnTesting}
+                    className="px-2 py-0.5 rounded-lg glass hover:bg-cyan-600/30 border border-white/10 text-[10px] font-mono text-cyan-200 transition cursor-pointer"
+                  >
+                    Test {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 4 Pillars Summary */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
+          <div className="glass rounded-xl p-2.5 border border-white/10 space-y-1 text-center">
+            <span className="text-lg">🇨🇭</span>
+            <h4 className="font-bold text-[11px] text-white">Loi Suisse LPD</h4>
+            <p className="text-[9px] text-white/50 leading-tight">100% hors juridiction 14 Eyes</p>
+          </div>
+          <div className="glass rounded-xl p-2.5 border border-white/10 space-y-1 text-center">
+            <span className="text-lg">🙈</span>
+            <h4 className="font-bold text-[11px] text-white">Zéro Logs</h4>
+            <p className="text-[9px] text-white/50 leading-tight">Aucun historique conservé</p>
+          </div>
+          <div className="glass rounded-xl p-2.5 border border-white/10 space-y-1 text-center">
+            <span className="text-lg">⚡</span>
+            <h4 className="font-bold text-[11px] text-white">Anti-Bridage</h4>
+            <p className="text-[9px] text-white/50 leading-tight">Bande passante 4K illimitée</p>
+          </div>
+          <div className="glass rounded-xl p-2.5 border border-white/10 space-y-1 text-center">
+            <span className="text-lg">🔐</span>
+            <h4 className="font-bold text-[11px] text-white">ChaCha20</h4>
+            <p className="text-[9px] text-white/50 leading-tight">Protection Wi-Fi public</p>
+          </div>
+        </div>
+      </div>
 
 
       {/* Section 1: Audio & Volume Management */}

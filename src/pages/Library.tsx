@@ -127,7 +127,7 @@ export function Library() {
       {/* Header and Quick Stats */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-3">
+          <h1 className="text-base sm:text-lg md:text-xl font-black text-white flex items-center gap-2.5">
             <span>📚 Gestion de la Bibliothèque</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-600/20 text-purple-400 font-mono border border-purple-500/30">
               {sources.length} éléments

@@ -95,7 +95,7 @@ export function VPNPage() {
             <span>🇨🇭 BOUCLIER VPN SUISSE & CHIFFREMENT ÉTENDU</span>
           </div>
 
-          <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight">
+          <h1 className="text-base sm:text-xl md:text-2xl font-black text-white tracking-tight">
             VPN NOVASTREAM
           </h1>
 

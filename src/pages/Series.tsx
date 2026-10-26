@@ -127,7 +127,7 @@ export function Series() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white flex items-center gap-3">
+          <h1 className="text-base sm:text-lg md:text-xl font-black text-white flex items-center gap-2.5">
             <span>📺 Séries</span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-600/20 text-indigo-400 font-mono border border-indigo-500/30">
               {seriesList.length}

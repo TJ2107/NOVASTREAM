@@ -89,7 +89,7 @@ export function DuoPage() {
             <span>NOVASTREAM DUO • CONTINUITÉ</span>
           </div>
 
-          <h1 className="text-xl md:text-4xl font-black text-white tracking-tight flex flex-wrap items-center justify-center text-center w-full gap-3">
+          <h1 className="text-base sm:text-lg md:text-xl font-black text-white tracking-tight flex flex-wrap items-center justify-center text-center w-full gap-2.5">
             <span>NOVASTREAM DUO</span>
           </h1>
 

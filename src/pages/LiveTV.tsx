@@ -202,7 +202,7 @@ export function LiveTV() {
       {/* Header and View Mode Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3">
+          <h1 className="text-base sm:text-lg md:text-xl font-black text-white flex items-center gap-2.5">
             <span>📺 TV en direct</span>
             <span className="text-xs px-2.5 py-1 rounded-full bg-red-950/80 text-[#E50914] font-mono border border-red-500/30">
               {channels.length} chaînes

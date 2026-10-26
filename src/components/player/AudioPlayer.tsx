@@ -80,13 +80,13 @@ export function AudioPlayer() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="fixed bottom-20 md:bottom-6 right-2 left-2 md:left-auto md:right-6 md:w-96 z-40 glass-strong rounded-2xl p-3 shadow-2xl border border-white/10"
+          className="fixed bottom-[72px] sm:bottom-20 md:bottom-6 right-2 left-2 md:left-auto md:right-6 md:w-96 z-40 glass-strong rounded-2xl p-2.5 sm:p-3 shadow-2xl border border-white/15 bg-black/85 backdrop-blur-2xl"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             {/* Logo or Icon with Equalizer effect */}
             <div 
               onClick={() => setIsVisualizerOpen(true)}
-              className="relative w-12 h-12 rounded-xl overflow-hidden glass flex-shrink-0 bg-black/60 flex items-center justify-center cursor-pointer group"
+              className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden glass flex-shrink-0 bg-black/70 flex items-center justify-center cursor-pointer group hover:scale-105 transition-transform border border-white/10"
               title="Ouvrir le visualiseur d'ondes"
             >
               {currentTrack.logo ? (
@@ -99,10 +99,10 @@ export function AudioPlayer() {
                   }}
                 />
               ) : (
-                <Radio className="w-6 h-6 text-[#E50914]" />
+                <Radio className="w-5 h-5 sm:w-6 sm:h-6 text-[#E50914]" />
               )}
 
-              {/* Live equalizer visualizer */}
+              {/* Live equalizer visualizer overlay */}
               {isPlaying && !loadError && (
                 <div className="absolute inset-0 bg-black/60 flex items-end justify-around px-1.5 pb-1 backdrop-blur-xs">
                   {[45, 80, 60, 95].map((h, i) => (
@@ -122,22 +122,22 @@ export function AudioPlayer() {
             {/* Station Title & Status */}
             <div 
               onClick={() => setIsVisualizerOpen(true)}
-              className="flex-1 min-w-0 cursor-pointer"
+              className="flex-1 min-w-0 cursor-pointer py-0.5"
             >
-              <div className="font-bold text-xs truncate text-white hover:text-red-300 transition-colors">
+              <div className="font-extrabold text-xs sm:text-sm truncate text-white hover:text-red-300 transition-colors">
                 {currentTrack.title}
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-[#E50914] font-mono">
+              <div className="flex items-center gap-1.5 text-[10px] text-[#E50914] font-mono font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#E50914] animate-ping" />
                 <span>{loadError ? 'Flux indisponible' : 'RADIO EN DIRECT'}</span>
               </div>
             </div>
 
-            {/* Controls */}
-            <div className="flex items-center gap-1">
+            {/* Responsive Touch Controls */}
+            <div className="flex items-center gap-0.5 sm:gap-1">
               <button
                 onClick={() => setIsVisualizerOpen(true)}
-                className="p-2 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition"
+                className="p-2 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition min-w-[36px] min-h-[36px] flex items-center justify-center"
                 title="Ouvrir le visualiseur d'ondes"
               >
                 <Waves className="w-4 h-4 text-[#E50914]" />
@@ -145,7 +145,7 @@ export function AudioPlayer() {
 
               <button
                 onClick={() => setIsCastModalOpen(true)}
-                className="p-2 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition"
+                className="p-2 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition min-w-[36px] min-h-[36px] flex items-center justify-center"
                 title="Diffuser la radio sur TV / Enceinte Wi-Fi / Cast"
               >
                 <Cast className="w-4 h-4 text-[#E50914]" />
@@ -153,15 +153,15 @@ export function AudioPlayer() {
 
               <button
                 onClick={togglePlay}
-                className="p-2.5 rounded-full bg-[#E50914] hover:bg-[#F40612] text-white transition shadow-md tv-focusable active:scale-95"
+                className="p-2.5 rounded-full bg-[#E50914] hover:bg-[#F40612] text-white transition shadow-md tv-focusable active:scale-95 min-w-[38px] min-h-[38px] flex items-center justify-center"
                 title={isPlaying ? 'Pause' : 'Lecture'}
               >
-                {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5 fill-current" />}
+                {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 ml-0.5 fill-current" />}
               </button>
 
               <button
                 onClick={toggleMute}
-                className="p-2 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition tv-focusable"
+                className="p-2 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition tv-focusable min-w-[36px] min-h-[36px] flex items-center justify-center hidden sm:flex"
                 title={isMuted ? 'Activer le son' : 'Couper le son'}
               >
                 {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4" />}
@@ -169,7 +169,7 @@ export function AudioPlayer() {
 
               <button
                 onClick={close}
-                className="p-2 text-white/50 hover:text-white rounded-lg hover:bg-white/10 transition tv-focusable"
+                className="p-2 text-white/50 hover:text-white rounded-lg hover:bg-white/10 transition tv-focusable min-w-[36px] min-h-[36px] flex items-center justify-center"
                 title="Fermer le lecteur radio"
               >
                 <X className="w-4 h-4" />

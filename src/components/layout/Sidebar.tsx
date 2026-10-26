@@ -32,13 +32,12 @@ import { subscribeToUnreadNotificationsCount } from '../../services/notification
 const navItems = [
   { to: '/', icon: Home, label: 'Accueil' },
   { to: '/duo', icon: Smartphone, label: 'Duo Multi-Écrans', isDuo: true },
-  { to: '/vpn', icon: Shield, label: 'Bouclier VPN', isVpn: true },
+  { to: '/radio', icon: Radio, label: 'Lecteur Audio 3D', isAudio: true },
   { to: '/browser', icon: Globe, label: 'Navigateur Portails' },
   { to: '/tv', icon: Tv, label: 'TV en direct' },
   { to: '/multiview', icon: Grid2X2, label: 'Mode Mosaïque' },
   { to: '/movies', icon: Film, label: 'Films' },
   { to: '/series', icon: Tv2, label: 'Séries' },
-  { to: '/radio', icon: Radio, label: 'Radios' },
   { to: '/library', icon: Library, label: 'Bibliothèque' },
   { to: '/admin', icon: ShieldAlert, label: 'Module Admin & Logs', isAdmin: true },
   { to: '/settings', icon: SettingsIcon, label: 'Paramètres' }
@@ -122,7 +121,7 @@ export function Sidebar({
 
         {/* Navigation */}
         <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
-          {filteredNavItems.map(({ to, icon: Icon, label, isVpn, isDuo, isAdmin: itemIsAdmin }) => (
+          {filteredNavItems.map(({ to, icon: Icon, label, isAudio, isDuo, isAdmin: itemIsAdmin }) => (
             <NavLink
               key={to}
               to={to}
@@ -137,8 +136,8 @@ export function Sidebar({
             >
               <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'} min-w-0`}>
                 <Icon className={`w-4 h-4 flex-shrink-0 ${
-                  isVpn && vpnEnabled 
-                    ? 'text-emerald-400' 
+                  isAudio 
+                    ? 'text-purple-400' 
                     : isDuo 
                     ? 'text-[#E50914]' 
                     : itemIsAdmin 
@@ -148,6 +147,11 @@ export function Sidebar({
                 {!isCollapsed && <span className="truncate">{label}</span>}
               </div>
 
+              {!isCollapsed && isAudio && (
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold bg-purple-900/40 text-purple-300 border border-purple-500/30">
+                  AUDIO 3D
+                </span>
+              )}
               {!isCollapsed && isDuo && (
                 <span className="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/40">
                   DUO
@@ -164,11 +168,6 @@ export function Sidebar({
                     ADMIN
                   </span>
                 </div>
-              )}
-              {!isCollapsed && isVpn && vpnEnabled && (
-                <span className="text-[10px] leading-none" title={vpnServer.country}>
-                  {vpnServer.flag}
-                </span>
               )}
             </NavLink>
           ))}

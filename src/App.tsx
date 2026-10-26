@@ -186,7 +186,7 @@ export default function App() {
                 <Route path="/radio" element={<RadioPage />} />
                 <Route path="/library" element={<Library />} />
                 <Route path="/browser" element={<PortalBrowser />} />
-                <Route path="/vpn" element={<VPNPage />} />
+                <Route path="/vpn" element={<SettingsPage />} />
                 <Route path="/duo" element={<DuoPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/admin" element={<AdminPage />} />
