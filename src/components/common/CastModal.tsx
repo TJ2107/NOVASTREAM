@@ -76,17 +76,22 @@ export function CastModal({
       if (err === 'cancel' || err?.message === 'cancel' || err?.toString?.().includes('cancel')) {
         return;
       }
-      console.warn('Google cast error:', err);
-      if (!capabilities.googleCast) {
-        if (videoElementRef?.current && capabilities.remotePlayback) {
-          await handleRemotePlayback();
-          return;
-        }
+      console.warn('[CastModal] Google cast notification:', err);
+      
+      const msg = err?.message || "Google Cast non disponible.";
+      setErrorMsg(msg);
+
+      // Si AirPlay ou RemotePlayback est disponible, proposer ou basculer facilement
+      const videoEl = videoElementRef?.current;
+      if (videoEl && capabilities.airPlay) {
+        console.log('[CastModal] AirPlay disponible, tentative automatique...');
+        try {
+          if (castViaAirPlay(videoEl)) {
+            onClose();
+            return;
+          }
+        } catch (airErr) {}
       }
-      setErrorMsg(
-        err?.message ||
-          "Impossible d'ouvrir le dialogue Google Cast. Vérifiez que votre Chromecast est allumé sur le même réseau Wi-Fi."
-      );
     } finally {
       setIsConnecting(false);
     }
@@ -104,6 +109,10 @@ export function CastModal({
       const ok = await castViaRemotePlayback(videoElement);
       if (ok) {
         onClose();
+      } else {
+        setErrorMsg(
+          "La sélection d'écran sans fil a été fermée ou aucune TV n'a été sélectionnée. Si votre Smart TV n'apparaît pas automatiquement, utilisez le mode 'NOVASTREAM Duo'."
+        );
       }
     } catch (err: any) {
       setErrorMsg(
@@ -217,9 +226,38 @@ export function CastModal({
         )}
 
         {errorMsg && (
-          <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/30 text-xs text-red-200 flex items-start gap-2.5">
-            <Info className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">{errorMsg}</div>
+          <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-xs text-amber-200 space-y-2">
+            <div className="flex items-start gap-2.5">
+              <Info className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 leading-relaxed">{errorMsg}</div>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-amber-500/20">
+              <span className="text-[10px] text-amber-300 font-medium mr-1">Alternatives :</span>
+              {onOpenDuo && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onOpenDuo();
+                  }}
+                  className="px-2 py-0.5 rounded bg-purple-900/80 hover:bg-purple-800 text-purple-200 text-[10px] font-bold transition flex items-center gap-1 border border-purple-500/30"
+                >
+                  <Smartphone className="w-3 h-3 text-purple-300" />
+                  <span>Mode Duo (Scan QR TV)</span>
+                </button>
+              )}
+              <button
+                onClick={handleRemotePlayback}
+                className="px-2 py-0.5 rounded bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 text-[10px] font-bold transition"
+              >
+                Smart TV / Miracast
+              </button>
+              <button
+                onClick={handleAirPlay}
+                className="px-2 py-0.5 rounded bg-cyan-900/60 hover:bg-cyan-800 text-cyan-200 text-[10px] font-bold transition"
+              >
+                AirPlay 2
+              </button>
+            </div>
           </div>
         )}
 
@@ -242,8 +280,8 @@ export function CastModal({
               <div className="min-w-0">
                 <div className="text-sm font-bold text-white flex items-center gap-2">
                   <span>Chromecast & Google TV</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/10 text-white/70">
-                    Wi-Fi
+                  <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${capabilities.googleCast ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30' : 'bg-white/10 text-white/70'}`}>
+                    {capabilities.googleCast ? 'Chrome / Edge' : 'Chromium'}
                   </span>
                 </div>
                 <p className="text-xs text-[#A1A1A6] truncate">

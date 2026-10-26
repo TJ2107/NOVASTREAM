@@ -7,6 +7,8 @@
  * 4. Local network direct streaming & DLNA links
  */
 
+import { secureUrl } from './secureStream';
+
 declare global {
   interface Window {
     __onGCastApiAvailable?: (isAvailable: boolean) => void;
@@ -52,13 +54,28 @@ class CastService {
     this.setupGoogleCastLifecycle();
   }
 
+  private injectGoogleCastScript() {
+    if (typeof window === 'undefined') return;
+    if (document.getElementById('gcast-sdk-script')) return;
+
+    const script = document.createElement('script');
+    script.id = 'gcast-sdk-script';
+    script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    document.head.appendChild(script);
+  }
+
   private setupGoogleCastLifecycle() {
     if (typeof window === 'undefined') return;
+
+    this.injectGoogleCastScript();
 
     // Connecter avec le hook précoce d'index.html s'il existe
     const onAvailable = (isAvailable: boolean) => {
       console.log('[NOVASTREAM Cast] API Available callback:', isAvailable);
       if (isAvailable) {
+        this.isGoogleCastAvailable = true;
         this.ensureGoogleCastInitialized(10, 150);
       }
     };
@@ -66,6 +83,7 @@ class CastService {
     (window as any).__dispatchGCastApiAvailable = onAvailable;
 
     if ((window as any).__castApiAvailable || window.cast?.framework) {
+      this.isGoogleCastAvailable = true;
       this.ensureGoogleCastInitialized(10, 150);
     } else {
       const existingCallback = window.__onGCastApiAvailable;
@@ -73,7 +91,6 @@ class CastService {
         if (existingCallback) existingCallback(isAvailable);
         onAvailable(isAvailable);
       };
-      // Polling passif au cas où l'événement a été déclenché avant le bundle React
       this.pollForCastFramework(15, 200);
     }
   }
@@ -84,6 +101,7 @@ class CastService {
       count++;
       if (window.cast?.framework?.CastContext && window.chrome?.cast?.media) {
         clearInterval(interval);
+        this.isGoogleCastAvailable = true;
         this.ensureGoogleCastInitialized(0);
       } else if (count >= maxAttempts) {
         clearInterval(interval);
@@ -97,6 +115,8 @@ class CastService {
     }
 
     if (typeof window === 'undefined') return false;
+
+    this.injectGoogleCastScript();
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const cast = window.cast;
@@ -204,7 +224,8 @@ class CastService {
    * Check what casting capabilities exist on the current browser/device
    */
   public getCapabilities(videoElement?: HTMLVideoElement | null) {
-    const hasGoogleCast = !!(this.isGoogleCastAvailable || window.cast?.framework || window.chrome?.cast);
+    const isChromeOrEdge = typeof navigator !== 'undefined' && /Chrome|Edg|Chromium/i.test(navigator.userAgent) && !/MobileVR/i.test(navigator.userAgent);
+    const hasGoogleCast = !!(this.isGoogleCastAvailable || window.cast?.framework || window.chrome?.cast || isChromeOrEdge);
     const hasRemotePlayback = typeof window !== 'undefined' && 'RemotePlayback' in window && !!(videoElement && (videoElement as any).remote);
     const hasAirPlay = typeof window !== 'undefined' && !!(videoElement && (videoElement as any).webkitShowPlaybackTargetPicker);
 
@@ -212,7 +233,8 @@ class CastService {
       googleCast: hasGoogleCast,
       remotePlayback: hasRemotePlayback,
       airPlay: hasAirPlay,
-      duo: true
+      duo: true,
+      isChromeOrEdge
     };
   }
 
@@ -220,11 +242,19 @@ class CastService {
    * Cast to Google Cast (Chromecast)
    */
   public async castViaGoogleCast(options: CastMediaOptions): Promise<boolean> {
-    const isReady = await this.ensureGoogleCastInitialized(12, 150);
+    const isReady = await this.ensureGoogleCastInitialized(10, 150);
     if (!isReady || !window.cast?.framework) {
-      throw new Error(
-        "Le protocole Google Cast n'est pas disponible ou actif sur ce navigateur. Assurez-vous d'utiliser Chrome/Chromium sur le même réseau Wi-Fi, ou utilisez le mode 'Smart TV & Écran sans fil' ou 'NOVASTREAM Duo'."
-      );
+      const isApple = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isFirefox = typeof navigator !== 'undefined' && /Firefox/i.test(navigator.userAgent);
+      
+      let platformNote = "Le protocole Google Cast nécessite Google Chrome ou Microsoft Edge sur ordinateur ou Android.";
+      if (isApple) {
+        platformNote = "Google Cast n'est pas supporté nativement dans Safari iOS/macOS. Utilisez l'option 'AirPlay 2' ci-dessous pour connecter votre Apple TV ou Smart TV.";
+      } else if (isFirefox) {
+        platformNote = "Firefox ne supporte pas l'extension Google Cast. Utilisez Google Chrome ou l'option 'Smart TV & Écran sans fil'.";
+      }
+
+      throw new Error(platformNote);
     }
 
     try {
@@ -262,20 +292,29 @@ class CastService {
       this.activeDeviceName = session.getCastDevice()?.friendlyName || 'Chromecast';
 
       // Build media load request
-      // Ensure streams are routed through server proxy if external to avoid CORS blocks on Chromecast
-      let streamUrl = options.url;
-      if (streamUrl.startsWith('http')) {
-        // If it's an external URL, route through our server-side proxy so Chromecast gets CORS headers and anti-403 bypass
-        streamUrl = `${window.location.origin}/api/proxy?url=${encodeURIComponent(streamUrl)}`;
-      } else if (!streamUrl.startsWith('/')) {
-        streamUrl = `/${streamUrl}`;
-      }
-      const absoluteUrl = streamUrl.startsWith('http')
-        ? streamUrl
-        : `${window.location.origin}${streamUrl}`;
+      // Route stream URL through secureUrl to apply all global/item proxy headers (User-Agent, Referer, Cookies)
+      const securedPath = secureUrl(options.url);
 
-      const contentType = options.contentType || (options.url.includes('.m3u8') ? 'application/vnd.apple.mpegurl' : 'video/mp4');
-      
+      let absoluteUrl = securedPath;
+      if (!absoluteUrl.startsWith('http://') && !absoluteUrl.startsWith('https://')) {
+        absoluteUrl = `${window.location.origin}${absoluteUrl.startsWith('/') ? '' : '/'}${absoluteUrl}`;
+      }
+
+      // Detect HLS vs MP4 vs Audio content type accurately for Chromecast
+      let contentType = options.contentType;
+      if (!contentType) {
+        const lowerUrl = options.url.toLowerCase();
+        if (lowerUrl.includes('.m3u8') || lowerUrl.includes('.m3u') || lowerUrl.includes('hls') || options.isLive) {
+          contentType = 'application/vnd.apple.mpegurl';
+        } else if (lowerUrl.includes('.mp3') || lowerUrl.includes('.aac') || lowerUrl.includes('.ogg')) {
+          contentType = 'audio/mp3';
+        } else {
+          contentType = 'video/mp4';
+        }
+      }
+
+      console.log('[NOVASTREAM Cast] Sending proxied URL to Chromecast:', absoluteUrl);
+
       // Chromecast requires absolute URL and content type in MediaInfo
       const mediaInfo = new chrome.cast.media.MediaInfo(absoluteUrl, contentType);
       mediaInfo.contentUrl = absoluteUrl; // Explicitly set contentUrl
@@ -341,40 +380,77 @@ class CastService {
    * Cast via W3C Remote Playback API (Android Chrome / Smart TV / Miracast)
    */
   public async castViaRemotePlayback(videoElement: HTMLVideoElement): Promise<boolean> {
-    const remote = (videoElement as any).remote;
-    if (!remote || typeof remote.prompt !== 'function') {
-      throw new Error("L'API Remote Playback n'est pas supportée sur cet appareil.");
+    if (!videoElement) {
+      throw new Error("Lancez d'abord la vidéo pour pouvoir la diffuser sur votre écran sans fil.");
     }
 
-    try {
-      this.castType = 'remote_playback';
-      // Listen to state changes
-      if (!remote.onstatechange) {
-        remote.onstatechange = () => {
-          if (remote.state === 'connected') {
-            this.isCasting = true;
-            this.activeDeviceName = 'Écran sans fil connecté';
-          } else if (remote.state === 'disconnected') {
-            this.isCasting = false;
-            this.activeDeviceName = null;
-          }
-          this.notifyListeners();
-        };
-      }
+    const remote = (videoElement as any).remote;
+    const webkitPicker = (videoElement as any).webkitShowPlaybackTargetPicker;
 
-      await remote.prompt();
-      this.isCasting = true;
-      this.activeDeviceName = 'Écran externe connecté';
-      this.notifyListeners();
-      return true;
-    } catch (err: any) {
-      const errMsg = String(err?.message || err || '');
-      if (err?.name === 'NotAllowedError' || errMsg.includes('dismissed') || errMsg.includes('cancel')) {
-        console.log('[NOVASTREAM Cast] Remote Playback prompt dismissed by user.');
-        return false;
+    // 1. Try W3C Remote Playback API (Android Chrome / Samsung Browser / Miracast)
+    if (remote && typeof remote.prompt === 'function') {
+      try {
+        this.castType = 'remote_playback';
+        if (!remote.onstatechange) {
+          remote.onstatechange = () => {
+            if (remote.state === 'connected') {
+              this.isCasting = true;
+              this.activeDeviceName = 'Écran sans fil (TV)';
+            } else if (remote.state === 'disconnected') {
+              this.isCasting = false;
+              this.activeDeviceName = null;
+            }
+            this.notifyListeners();
+          };
+        }
+
+        await remote.prompt();
+        this.isCasting = true;
+        this.activeDeviceName = 'Écran sans fil connecté';
+        this.notifyListeners();
+        return true;
+      } catch (err: any) {
+        const errMsg = String(err?.message || err || '');
+        if (err?.name === 'NotAllowedError' || errMsg.includes('dismissed') || errMsg.includes('cancel')) {
+          console.log('[NOVASTREAM Cast] Remote Playback annulé par l\'utilisateur.');
+          return false;
+        }
+        console.warn('[NOVASTREAM Cast] Remote Playback API warning:', err);
       }
-      console.warn('[NOVASTREAM Cast] Remote Playback prompt cancelled or failed:', err);
-      return false;
+    }
+
+    // 2. Try WebKit AirPlay Target Picker (Apple TV / AirPlay 2 Smart TVs on Safari)
+    if (typeof webkitPicker === 'function') {
+      try {
+        webkitPicker.call(videoElement);
+        this.castType = 'airplay';
+        this.activeDeviceName = 'Smart TV / AirPlay';
+        this.notifyListeners();
+        return true;
+      } catch (e) {}
+    }
+
+    // 3. Try Google Cast if initialized
+    if (this.isGoogleCastAvailable && window.cast?.framework) {
+      try {
+        const ok = await this.castViaGoogleCast({
+          url: videoElement.currentSrc || videoElement.src || '',
+          title: 'NOVASTREAM Stream'
+        });
+        if (ok) return true;
+      } catch (e) {}
+    }
+
+    // 4. Detailed explanation when browser cannot initiate direct wireless cast
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (!isMobile) {
+      throw new Error(
+        "Les navigateurs d'ordinateur (Chrome/Firefox sur PC/Mac) nécessitent un Chromecast ou l'utilisation du mode 'NOVASTREAM Duo' pour envoyer la vidéo sur une Smart TV (Samsung/LG/Sony)."
+      );
+    } else {
+      throw new Error(
+        "Votre navigateur mobile n'a pas détecté d'écran sans fil compatible Miracast/DLNA à proximité. Assurez-vous d'activer le partage d'écran sur votre Smart TV."
+      );
     }
   }
 
