@@ -24,6 +24,7 @@ import {
   Server,
   Zap,
   MessageSquareText,
+  Tv,
   X
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
@@ -681,14 +682,45 @@ export function VideoPlayer({
           </a>
         </div>
 
-        {/* Interactive Web Frame with full media permissions */}
-        <iframe
-          src={effectiveSrc}
-          className="w-full flex-1 border-0 min-h-[500px]"
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write; display-capture"
-          allowFullScreen
-          title={title || 'Player'}
-        />
+        {/* Safeguard against deprecated YouTube search embeds (which show 'Cette vidéo n'est pas disponible') */}
+        {effectiveSrc.includes('listType=search') ? (
+          <div className="w-full flex-1 min-h-[460px] flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-[#0b0c1e] to-[#12132d]">
+            <div className="w-16 h-16 rounded-2xl bg-red-600/20 border border-red-500/40 flex items-center justify-center text-red-400 mb-4 shadow-xl shadow-red-950/40">
+              <Tv className="w-8 h-8" />
+            </div>
+            <h3 className="text-base sm:text-lg font-bold text-white mb-2">{title || 'Diffusion en direct'}</h3>
+            <p className="text-white/70 text-xs sm:text-sm max-w-md mb-6 leading-relaxed">
+              Pour des raisons de politique de diffusion externe, ce flux s'ouvre directement sur le diffuseur officiel.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <a
+                href={effectiveSrc.replace('/embed?listType=search&list=', '/results?search_query=')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-red-900/50 transition transform active:scale-95"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                Ouvrir la diffusion en direct
+              </a>
+              {streamCandidates.length > 1 && (
+                <button
+                  onClick={() => setActiveStreamIndex((prev) => (prev + 1) % streamCandidates.length)}
+                  className="px-4 py-2.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 text-xs sm:text-sm font-semibold transition"
+                >
+                  Basculer sur le flux direct de secours
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <iframe
+            src={effectiveSrc}
+            className="w-full flex-1 border-0 min-h-[500px]"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write; display-capture"
+            allowFullScreen
+            title={title || 'Player'}
+          />
+        )}
       </div>
     );
   }

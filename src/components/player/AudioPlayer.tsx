@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import Hls from 'hls.js';
 import { Play, Pause, Volume2, VolumeX, X, Radio, Activity, Waves, Cast } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,9 +14,54 @@ export function AudioPlayer() {
   const [loadError, setLoadError] = useState(false);
   const [isVisualizerOpen, setIsVisualizerOpen] = useState(false);
   const [isCastModalOpen, setIsCastModalOpen] = useState(false);
+  const [useProxy, setUseProxy] = useState(false);
+  const [candidateIndex, setCandidateIndex] = useState(0);
+
+  // Candidate URLs list
+  const candidates = useMemo(() => {
+    if (!currentTrack?.url) return [];
+    const list = [currentTrack.url];
+    if (Array.isArray(currentTrack.alternativeUrls)) {
+      currentTrack.alternativeUrls.forEach((u) => {
+        if (u && !list.includes(u)) list.push(u);
+      });
+    }
+    return list;
+  }, [currentTrack]);
+
+  const rawUrl = candidates[candidateIndex] || currentTrack?.url;
+
+  const resolvedUrl = useMemo(() => {
+    if (!rawUrl) return '';
+    if (rawUrl.startsWith('blob:') || rawUrl.startsWith('data:')) return rawUrl;
+    if (useProxy) return `/proxy?url=${encodeURIComponent(rawUrl)}`;
+    return secureUrl(rawUrl);
+  }, [rawUrl, useProxy]);
+
+  // Reset fallback state when track ID changes
+  useEffect(() => {
+    setUseProxy(false);
+    setCandidateIndex(0);
+    setLoadError(false);
+  }, [currentTrack?.id]);
+
+  const handleAudioError = useCallback(() => {
+    if (!useProxy && rawUrl && !rawUrl.startsWith('blob:') && !rawUrl.startsWith('data:')) {
+      console.log('[AudioPlayer] Auto-recovering: Switching to proxy for:', rawUrl);
+      setUseProxy(true);
+      return;
+    }
+    if (candidateIndex + 1 < candidates.length) {
+      console.log(`[AudioPlayer] Auto-recovering: Switching to alternative candidate #${candidateIndex + 2}`);
+      setCandidateIndex((prev) => prev + 1);
+      setUseProxy(false);
+      return;
+    }
+    setLoadError(true);
+  }, [useProxy, rawUrl, candidateIndex, candidates.length]);
 
   useEffect(() => {
-    if (!currentTrack || !audioRef.current) return;
+    if (!currentTrack || !audioRef.current || !resolvedUrl) return;
     setLoadError(false);
 
     if (hlsRef.current) {
@@ -25,24 +70,25 @@ export function AudioPlayer() {
     }
 
     const audio = audioRef.current;
-    const url = secureUrl(currentTrack.url);
 
-    if (url.includes('.m3u8') && Hls.isSupported()) {
+    if (resolvedUrl.includes('.m3u8') && Hls.isSupported()) {
       const hls = new Hls({ enableWorker: true });
       hlsRef.current = hls;
-      hls.loadSource(url);
+      hls.loadSource(resolvedUrl);
       hls.attachMedia(audio);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         audio.play().catch(() => {});
       });
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.fatal) {
-          setLoadError(true);
+          handleAudioError();
         }
       });
     } else {
-      audio.src = url;
-      audio.play().catch(() => {});
+      audio.src = resolvedUrl;
+      if (isPlaying) {
+        audio.play().catch(() => {});
+      }
     }
 
     return () => {
@@ -51,7 +97,7 @@ export function AudioPlayer() {
         hlsRef.current = null;
       }
     };
-  }, [currentTrack]);
+  }, [resolvedUrl, isPlaying, handleAudioError]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -182,8 +228,7 @@ export function AudioPlayer() {
             ref={audioRef}
             onPlay={() => resume()}
             onPause={() => pause()}
-            onError={() => setLoadError(true)}
-            crossOrigin="anonymous"
+            onError={handleAudioError}
           />
         </motion.div>
       </AnimatePresence>

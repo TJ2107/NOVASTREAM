@@ -137,35 +137,55 @@ export default function AdminPage() {
 
   useEffect(() => {
     // Listen to users collection in real time
-    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const items = snapshot.docs.map((docSnap) => ({
-        ...(docSnap.data() as UserLog),
-        uid: docSnap.id
-      }));
-      setUsersList(items);
-    });
+    const unsubUsers = onSnapshot(
+      collection(db, 'users'),
+      (snapshot) => {
+        const items = snapshot.docs.map((docSnap) => ({
+          ...(docSnap.data() as UserLog),
+          uid: docSnap.id
+        }));
+        setUsersList(items);
+      },
+      (err) => {
+        console.warn('Admin users snapshot error (handled):', err);
+      }
+    );
 
     // Listen to feedback collection in real time
     const unsubFeedback = onSnapshot(
-      query(collection(db, 'feedback'), orderBy('timestamp', 'desc')),
+      collection(db, 'feedback'),
       (snapshot) => {
         const items = snapshot.docs.map((docSnap) => ({
           ...(docSnap.data() as UserFeedback),
           id: docSnap.id
-        }));
+        })).sort((a, b) => {
+          const tA = (a.timestamp as any)?.toMillis?.() || (a.timestamp as any)?.seconds * 1000 || 0;
+          const tB = (b.timestamp as any)?.toMillis?.() || (b.timestamp as any)?.seconds * 1000 || 0;
+          return tB - tA;
+        });
         setFeedbackList(items);
+      },
+      (err) => {
+        console.warn('Admin feedback snapshot error (handled):', err);
       }
     );
 
     // Listen to payments collection in real time
     const unsubPayments = onSnapshot(
-      query(collection(db, 'payments'), orderBy('createdAt', 'desc')),
+      collection(db, 'payments'),
       (snapshot) => {
         const items = snapshot.docs.map((docSnap) => ({
           ...(docSnap.data() as PaymentRecord),
           id: docSnap.id
-        }));
+        })).sort((a, b) => {
+          const tA = (a.createdAt as any)?.toMillis?.() || (a.createdAt as any)?.seconds * 1000 || 0;
+          const tB = (b.createdAt as any)?.toMillis?.() || (b.createdAt as any)?.seconds * 1000 || 0;
+          return tB - tA;
+        });
         setPaymentsList(items);
+      },
+      (err) => {
+        console.warn('Admin payments snapshot error (handled):', err);
       }
     );
 

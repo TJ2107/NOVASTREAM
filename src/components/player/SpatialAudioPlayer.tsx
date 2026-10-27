@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import Hls from 'hls.js';
 import {
   Play,
   Pause,
@@ -16,7 +17,9 @@ import {
   Zap,
   RotateCcw,
   Check,
-  Power
+  Power,
+  ShieldCheck,
+  RefreshCw
 } from 'lucide-react';
 import { useAppStore, type MediaItem } from '../../store/useAppStore';
 import { useAudioStore } from '../../store/useAudioStore';
@@ -107,7 +110,12 @@ export function SpatialAudioPlayer({ isOpen = true, onClose, embedded = false }:
   const radioAndMusicItems = sources.filter((s) => s.type === 'radio' || s.type === 'live');
 
   // Track state
-  const [activeTrack, setActiveTrack] = useState<{ title: string; url: string; logo?: string } | null>(null);
+  const [activeTrack, setActiveTrack] = useState<{
+    title: string;
+    url: string;
+    logo?: string;
+    alternativeUrls?: string[];
+  } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -115,6 +123,12 @@ export function SpatialAudioPlayer({ isOpen = true, onClose, embedded = false }:
   const [isMuted, setIsMuted] = useState(false);
   const [isLiveStream, setIsLiveStream] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Fallback and proxy state to handle code 4 format & CORS errors
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const [useProxy, setUseProxy] = useState(false);
+  const [corsMode, setCorsMode] = useState<'anonymous' | undefined>('anonymous');
+  const [webAudioFailed, setWebAudioFailed] = useState(false);
 
   // Spatial Audio toggle and parameters
   const [isSpatialEnabled, setIsSpatialEnabled] = useState(true);
@@ -133,18 +147,141 @@ export function SpatialAudioPlayer({ isOpen = true, onClose, embedded = false }:
   const compressorRef = useRef<DynamicsCompressorNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
 
-  // Determine resolved audio URL and whether crossOrigin is supported
-  const resolvedAudioUrl = useMemo(() => {
-    if (!activeTrack?.url) return undefined;
-    if (activeTrack.url.startsWith('blob:') || activeTrack.url.startsWith('data:')) {
-      return activeTrack.url;
+  // Candidate URLs list including alternative fallback URLs
+  const candidateUrls = useMemo(() => {
+    if (!activeTrack?.url) return [];
+    const list = [activeTrack.url];
+    if (Array.isArray(activeTrack.alternativeUrls)) {
+      activeTrack.alternativeUrls.forEach((u) => {
+        if (u && !list.includes(u)) list.push(u);
+      });
     }
-    return secureUrl(activeTrack.url);
+    return list;
   }, [activeTrack]);
+
+  const rawUrl = candidateUrls[candidateIndex] || activeTrack?.url;
+
+  // Determine resolved audio URL with proxying support
+  const resolvedAudioUrl = useMemo(() => {
+    if (!rawUrl) return undefined;
+    if (rawUrl.startsWith('blob:') || rawUrl.startsWith('data:')) {
+      return rawUrl;
+    }
+    if (useProxy) {
+      return `/proxy?url=${encodeURIComponent(rawUrl)}`;
+    }
+    return secureUrl(rawUrl);
+  }, [rawUrl, useProxy]);
 
   const isLocalFile = useMemo(() => {
     return activeTrack?.url.startsWith('blob:') || activeTrack?.url.startsWith('data:');
   }, [activeTrack]);
+
+  const isHlsStream = useMemo(() => {
+    return !!resolvedAudioUrl?.toLowerCase().includes('.m3u8');
+  }, [resolvedAudioUrl]);
+
+  // Hls instance ref for streaming streams (m3u8)
+  const hlsRef = useRef<Hls | null>(null);
+
+  // Auto-recovery handler for code 4 format errors, CORS or unreachable streams
+  const handleStreamFailure = useCallback((reason?: string) => {
+    console.warn('[Spatial Audio] Stream failure detected:', reason, {
+      useProxy,
+      corsMode,
+      candidateIndex,
+      candidateTotal: candidateUrls.length,
+      rawUrl
+    });
+
+    // Step 1: If direct stream failed, retry with backend proxy immediately!
+    // The backend proxy provides CORS headers (Access-Control-Allow-Origin: *),
+    // range requests, and VLC User-Agent.
+    if (!useProxy && rawUrl && !rawUrl.startsWith('blob:') && !rawUrl.startsWith('data:')) {
+      console.log('[Spatial Audio] Auto-recovering: Switching stream to backend proxy...');
+      setUseProxy(true);
+      setCorsMode('anonymous');
+      setLoadError(null);
+      return;
+    }
+
+    // Step 2: If proxy with CORS 'anonymous' failed, retry without crossOrigin (native direct mode)
+    if (corsMode === 'anonymous') {
+      console.log('[Spatial Audio] Auto-recovering: Removing crossOrigin attribute for native playback...');
+      setCorsMode(undefined);
+      setLoadError(null);
+      return;
+    }
+
+    // Step 3: Switch to next candidate in alternativeUrls
+    if (candidateIndex + 1 < candidateUrls.length) {
+      const nextIdx = candidateIndex + 1;
+      console.log(`[Spatial Audio] Auto-recovering: Trying alternative stream candidate #${nextIdx + 1}...`);
+      setCandidateIndex(nextIdx);
+      setUseProxy(false);
+      setCorsMode('anonymous');
+      setLoadError(null);
+      return;
+    }
+
+    // All automated fallback attempts exhausted
+    setIsPlaying(false);
+    setLoadError('Flux radio inaccessible ou format non décodable. Utilisez le bouton ci-dessous pour forcer le Proxy.');
+  }, [useProxy, corsMode, candidateIndex, candidateUrls, rawUrl]);
+
+  // Attach HLS if stream is m3u8 or load native audio
+  useEffect(() => {
+    if (!resolvedAudioUrl || !audioRef.current) return;
+
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    if (isHlsStream) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          backBufferLength: 60
+        });
+        hlsRef.current = hls;
+        hls.loadSource(resolvedAudioUrl);
+        hls.attachMedia(audioRef.current);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setLoadError(null);
+          if (isPlaying) {
+            audioRef.current?.play().catch(() => {});
+          }
+        });
+        hls.on(Hls.Events.ERROR, (_: any, data: any) => {
+          if (data.fatal) {
+            console.warn('[Spatial Audio] HLS fatal error:', data.type, data.details);
+            handleStreamFailure(`HLS fatal: ${data.details}`);
+          }
+        });
+      } else if (audioRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+        audioRef.current.src = resolvedAudioUrl;
+        if (isPlaying) {
+          audioRef.current.play().catch(() => {});
+        }
+      } else {
+        handleStreamFailure('HLS non supporté sur ce navigateur.');
+      }
+    } else {
+      audioRef.current.src = resolvedAudioUrl;
+      if (isPlaying) {
+        audioRef.current.play().catch(() => {});
+      }
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [resolvedAudioUrl, isHlsStream, handleStreamFailure]);
 
   // Sync with global store track if updated
   useEffect(() => {
@@ -152,16 +289,21 @@ export function SpatialAudioPlayer({ isOpen = true, onClose, embedded = false }:
       setActiveTrack({
         title: currentTrack.title,
         url: currentTrack.url,
-        logo: currentTrack.logo || currentTrack.poster
+        logo: currentTrack.logo || currentTrack.poster,
+        alternativeUrls: currentTrack.alternativeUrls
       });
       setIsLiveStream(currentTrack.type === 'radio' || currentTrack.type === 'live');
       setLoadError(null);
+      setCandidateIndex(0);
+      setUseProxy(false);
+      setCorsMode('anonymous');
+      setWebAudioFailed(false);
     }
   }, [currentTrack]);
 
-  // Setup Web Audio API Nodes
+  // Setup Web Audio API Nodes safely
   const initWebAudio = useCallback(() => {
-    if (!audioRef.current || audioCtxRef.current) return;
+    if (!audioRef.current || audioCtxRef.current || sourceNodeRef.current) return;
 
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -222,10 +364,12 @@ export function SpatialAudioPlayer({ isOpen = true, onClose, embedded = false }:
           gain.connect(ctx.destination);
         }
       } catch (nodeErr) {
-        console.warn('[Spatial Audio] Web Audio node init warning, falling back to native player:', nodeErr);
+        console.warn('[Spatial Audio] Web Audio source node init warning:', nodeErr);
+        setWebAudioFailed(true);
       }
     } catch (e) {
-      console.warn('[Spatial Audio] Web Audio API init warning:', e);
+      console.warn('[Spatial Audio] AudioContext init warning:', e);
+      setWebAudioFailed(true);
     }
   }, [bassGain, trebleGain, activePreset]);
 
@@ -411,10 +555,78 @@ export function SpatialAudioPlayer({ isOpen = true, onClose, embedded = false }:
               {activeTrack ? (isLiveStream ? 'Radio Streaming Haute Qualité' : 'Fichier Audio Local') : 'Choisissez une station ou un fichier MP3'}
             </p>
 
+            {/* Proxy & Stream Mode status badges */}
+            {activeTrack && !isLocalFile && (
+              <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+                {useProxy && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 text-[10px] font-mono border border-emerald-500/40">
+                    <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                    <span>Proxy Sécurisé (Anti-CORS)</span>
+                  </span>
+                )}
+                {candidateUrls.length > 1 && (
+                  <span className="px-2 py-0.5 rounded-full bg-purple-950/70 text-purple-300 text-[10px] font-mono border border-purple-500/30">
+                    Source {candidateIndex + 1}/{candidateUrls.length}
+                  </span>
+                )}
+                {!corsMode && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-950/70 text-amber-300 text-[10px] font-mono border border-amber-500/30">
+                    Mode Audio Direct
+                  </span>
+                )}
+              </div>
+            )}
+
             {loadError && (
-              <p className="text-xs text-red-400 font-mono mt-2 bg-red-950/80 p-2 rounded-xl border border-red-500/30">
-                {loadError}
-              </p>
+              <div className="space-y-2 mt-2">
+                <p className="text-xs text-red-400 font-mono bg-red-950/80 p-2 rounded-xl border border-red-500/30">
+                  {loadError}
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+                  {!useProxy && (
+                    <button
+                      onClick={() => {
+                        setUseProxy(true);
+                        setCorsMode('anonymous');
+                        setLoadError(null);
+                        setIsPlaying(true);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer shadow-sm transition"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Forcer via Proxy</span>
+                    </button>
+                  )}
+                  {candidateUrls.length > 1 && (
+                    <button
+                      onClick={() => {
+                        const next = (candidateIndex + 1) % candidateUrls.length;
+                        setCandidateIndex(next);
+                        setUseProxy(false);
+                        setCorsMode('anonymous');
+                        setLoadError(null);
+                        setIsPlaying(true);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer shadow-sm transition"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Flux suivant ({candidateIndex + 1}/{candidateUrls.length})</span>
+                    </button>
+                  )}
+                  {corsMode === 'anonymous' && (
+                    <button
+                      onClick={() => {
+                        setCorsMode(undefined);
+                        setLoadError(null);
+                        setIsPlaying(true);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[10px] cursor-pointer shadow-sm transition"
+                    >
+                      <span>Mode Direct</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 
@@ -648,8 +860,9 @@ export function SpatialAudioPlayer({ isOpen = true, onClose, embedded = false }:
 
       <audio
         ref={audioRef}
-        src={resolvedAudioUrl}
-        crossOrigin={isLocalFile ? undefined : 'anonymous'}
+        src={isHlsStream ? undefined : resolvedAudioUrl}
+        crossOrigin={isLocalFile ? undefined : corsMode}
+        preload="auto"
         onTimeUpdate={() => {
           if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
         }}
@@ -657,12 +870,17 @@ export function SpatialAudioPlayer({ isOpen = true, onClose, embedded = false }:
           if (audioRef.current) setDuration(audioRef.current.duration || 0);
         }}
         onEnded={() => setIsPlaying(false)}
-        onError={(e) => {
-          console.warn('[Spatial Audio] Audio tag error:', e);
-          if (activeTrack) {
-            setLoadError('Erreur de lecture du fichier MP3. Si la piste est distante, vérifiez le lien HTTPS et les accès CORS.');
-            setIsPlaying(false);
+        onError={() => {
+          const mediaError = audioRef.current?.error;
+          // If HLS is currently handling this m3u8 stream, ignore native tag fallback
+          if (isHlsStream && hlsRef.current) {
+            return;
           }
+          const msg = mediaError
+            ? `code ${mediaError.code}: ${mediaError.message || 'Format error'}`
+            : 'Audio tag error';
+          console.warn('[Spatial Audio] Audio tag error:', msg);
+          handleStreamFailure(msg);
         }}
       />
     </div>

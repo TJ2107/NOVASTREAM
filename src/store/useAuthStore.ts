@@ -64,6 +64,8 @@ export const useAuthStore = create<AuthState>((set) => ({
                 useAppStore.getState().setSubscriptionPlan('free', null);
               }
             }
+          }, (err) => {
+            console.warn('User doc snapshot sync error (handled):', err);
           });
         } catch (e) {
           console.warn('Could not establish user doc snapshot listener:', e);

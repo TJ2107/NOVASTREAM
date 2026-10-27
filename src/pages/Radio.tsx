@@ -40,13 +40,21 @@ export function RadioPage() {
 
   const stations = useMemo(() => sources.filter((s) => s.type === 'radio'), [sources]);
 
-  // Extract unique categories/groups for filter tabs
+  // Extract unique categories/groups for filter tabs with prioritized ordering
   const categories = useMemo(() => {
     const set = new Set<string>();
     stations.forEach((s) => {
       if (s.group) set.add(s.group);
     });
-    return Array.from(set);
+    const priority = ['Afrique & Congo', 'Europe & France', 'Actualités', 'Musique'];
+    return Array.from(set).sort((a, b) => {
+      const idxA = priority.indexOf(a);
+      const idxB = priority.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
   }, [stations]);
 
   const PAGE_SIZE = 36;
@@ -58,7 +66,15 @@ export function RadioPage() {
       if (selectedCategory === 'favorites') {
         if (!favorites.includes(s.id)) return false;
       } else if (selectedCategory !== 'all') {
-        if (s.group !== selectedCategory) return false;
+        if (selectedCategory === 'Afrique & Congo') {
+          const isAfricaCongo = s.group === 'Afrique & Congo' || s.country === 'CD' || s.country === 'CG';
+          if (!isAfricaCongo) return false;
+        } else if (selectedCategory === 'Europe & France') {
+          const isEurope = s.group === 'Europe & France' || ['FR', 'BE', 'CH', 'GB', 'DE', 'IT', 'ES'].includes(s.country || '');
+          if (!isEurope) return false;
+        } else if (s.group !== selectedCategory) {
+          return false;
+        }
       }
 
       // Search query
@@ -66,7 +82,10 @@ export function RadioPage() {
       const q = search.toLowerCase();
       return (
         s.title.toLowerCase().includes(q) ||
+        (s.name && s.name.toLowerCase().includes(q)) ||
         (s.group && s.group.toLowerCase().includes(q)) ||
+        (s.language && s.language.toLowerCase().includes(q)) ||
+        (s.country && s.country.toLowerCase().includes(q)) ||
         (s.description && s.description.toLowerCase().includes(q))
       );
     });

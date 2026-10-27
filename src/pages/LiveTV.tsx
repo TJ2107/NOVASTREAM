@@ -21,7 +21,18 @@ import { AddSourceModal } from '../components/common/AddSourceModal';
 import { VPNBadge } from '../components/common/VPNBadge';
 import { EPGGuide } from '../components/tv/EPGGuide';
 
-const CATEGORIES = ['Toutes', 'Afrique & Congo', 'Actualités', 'Généraliste', 'Sport', 'Cinéma', 'Musique', 'Enfants', 'Documentaire'];
+const CATEGORIES = [
+  'Toutes',
+  'Afrique & Congo',
+  'Europe & France',
+  'Actualités',
+  'Généraliste',
+  'Sport',
+  'Cinéma',
+  'Musique',
+  'Enfants',
+  'Documentaire'
+];
 
 export function LiveTV() {
   const { id } = useParams<{ id: string }>();
@@ -89,13 +100,37 @@ export function LiveTV() {
       const matchSearch =
         !search ||
         c.title.toLowerCase().includes(search.toLowerCase()) ||
-        (c.group && c.group.toLowerCase().includes(search.toLowerCase()));
-      const matchCat =
-        selectedCategory === 'Toutes' ||
-        c.group?.toLowerCase().includes(selectedCategory.toLowerCase());
+        (c.group && c.group.toLowerCase().includes(search.toLowerCase())) ||
+        (c.language && c.language.toLowerCase().includes(search.toLowerCase())) ||
+        (c.country && c.country.toLowerCase().includes(search.toLowerCase()));
+
+      let matchCat = selectedCategory === 'Toutes';
+      if (!matchCat) {
+        if (selectedCategory === 'Afrique & Congo') {
+          matchCat = Boolean(
+            c.group?.toLowerCase().includes('afrique') ||
+            c.group?.toLowerCase().includes('congo') ||
+            c.country === 'CD' ||
+            c.country === 'CG'
+          );
+        } else if (selectedCategory === 'Europe & France') {
+          matchCat = Boolean(
+            c.group?.toLowerCase().includes('europe') ||
+            c.group?.toLowerCase().includes('france') ||
+            ['FR', 'DE', 'IT', 'ES', 'GB', 'BE', 'CH'].includes(c.country || '')
+          );
+        } else {
+          matchCat = Boolean(
+            c.group?.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+            c.category?.toLowerCase() === selectedCategory.toLowerCase()
+          );
+        }
+      }
+
       return matchSearch && matchCat;
     });
   }, [channels, search, selectedCategory]);
+
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);

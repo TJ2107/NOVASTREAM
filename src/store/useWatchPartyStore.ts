@@ -124,18 +124,30 @@ export const useWatchPartyStore = create<WatchPartyState>((set, get) => ({
           } as any : null
         });
       }
+    }, (err) => {
+      console.warn('WatchParty room listener error (handled):', err);
     });
     
     // Participants
     onSnapshot(collection(db, 'watch-parties', roomId, 'participants'), (snapshot) => {
       const participants = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as WatchPartyParticipant));
       set({ participants });
+    }, (err) => {
+      console.warn('WatchParty participants listener error (handled):', err);
     });
 
     // Messages
-    onSnapshot(query(collection(db, 'watch-parties', roomId, 'messages'), orderBy('timestamp', 'asc')), (snapshot) => {
-      const messages = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as WatchPartyMessage));
+    onSnapshot(collection(db, 'watch-parties', roomId, 'messages'), (snapshot) => {
+      const messages = snapshot.docs
+        .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as WatchPartyMessage))
+        .sort((a, b) => {
+          const tA = (a.timestamp as any)?.toMillis?.() || (a.timestamp as any)?.seconds * 1000 || 0;
+          const tB = (b.timestamp as any)?.toMillis?.() || (b.timestamp as any)?.seconds * 1000 || 0;
+          return tA - tB;
+        });
       set({ messages });
+    }, (err) => {
+      console.warn('WatchParty messages listener error (handled):', err);
     });
   },
 
