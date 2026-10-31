@@ -1151,13 +1151,15 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* Section: Configuration des En-têtes HTTP & Proxy M3U */}
-      <ProxyHeadersManagement
-        proxyConfig={proxyConfig}
-        onSave={setProxyConfig}
-        onReset={resetProxyConfig}
-        showToast={showToast}
-      />
+      {/* Section: Configuration des En-têtes HTTP & Proxy M3U (Réservé exclusivement à l'administrateur) */}
+      {isAdmin && (
+        <ProxyHeadersManagement
+          proxyConfig={proxyConfig}
+          onSave={setProxyConfig}
+          onReset={resetProxyConfig}
+          showToast={showToast}
+        />
+      )}
 
       {/* Section 3: Compatibilité Multiplateforme */}
       <div className="glass-strong rounded-3xl p-6 border border-white/10 space-y-6">
@@ -1647,12 +1649,15 @@ function ProxyHeadersManagement({
             <ShieldCheck className="w-5 h-5 text-white" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-base md:text-lg font-bold text-white">
                 En-têtes HTTP & Proxy M3U (User-Agent, Referer, Cookies)
               </h2>
               <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-mono font-bold uppercase">
                 Anti-Blocage 403
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40 text-[10px] font-mono font-bold uppercase">
+                Réservé Admin
               </span>
             </div>
             <p className="text-xs text-white/60 mt-0.5">

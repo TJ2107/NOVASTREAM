@@ -243,135 +243,137 @@ export function RadioVisualizerModal({ isOpen, onClose }: Props) {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/90 backdrop-blur-2xl animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 backdrop-blur-2xl animate-fade-in"
     >
-      <div className="w-full max-w-4xl h-[90vh] md:h-[82vh] rounded-3xl glass-strong border border-white/[0.08] flex flex-col justify-between overflow-hidden shadow-2xl relative">
+      <div className="w-full max-w-4xl h-[94vh] sm:h-[90vh] md:h-[82vh] rounded-2xl sm:rounded-3xl glass-strong border border-white/[0.08] flex flex-col justify-between overflow-hidden shadow-2xl relative">
         {/* Top Header Bar */}
-        <div className="h-16 px-4 md:px-6 flex items-center justify-between border-b border-white/[0.08] bg-black/40 z-20">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-[#E50914] flex items-center justify-center shadow-lg accent-glow flex-shrink-0">
-              <Activity className="w-5 h-5 text-white" />
+        <div className="min-h-14 sm:h-16 px-3 sm:px-4 md:px-6 py-2 flex items-center justify-between border-b border-white/[0.08] bg-black/40 z-20 gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#E50914] flex items-center justify-center shadow-lg accent-glow shrink-0">
+              <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-sm md:text-base text-white tracking-tight">
-                  RADIO VISUALIZER
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="font-black text-xs sm:text-sm md:text-base text-white tracking-tight truncate">
+                  VISUALISEUR ONDES
                 </span>
-                <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/40">
-                  {isPlaying ? '60 FPS ACTIF' : 'EN PAUSE'}
+                <span className="text-[8px] sm:text-[9px] font-mono font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/40 shrink-0">
+                  {isPlaying ? '60 FPS' : 'PAUSE'}
                 </span>
               </div>
-              <span className="text-[10px] text-[#A1A1A6]">
-                Ondes audio interactives en temps réel • Haute fidélité OLED
+              <span className="text-[9px] sm:text-[10px] text-[#A1A1A6] truncate block hidden xs:block">
+                Ondes audio interactives en temps réel • Haute fidélité
               </span>
             </div>
           </div>
 
-          {/* Style Switcher Pills */}
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/60 border border-white/10">
-            <button
-              onClick={() => setStyle('waves')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
-                style === 'waves'
-                  ? 'bg-[#E50914] text-white shadow-md'
-                  : 'text-white/60 hover:text-white'
-              }`}
-              title="Ondes Cinéma"
-            >
-              <Waves className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Ondes</span>
-            </button>
+          {/* Style Switcher Pills & Actions */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="flex items-center gap-0.5 sm:gap-1 p-0.5 sm:p-1 rounded-xl bg-black/60 border border-white/10">
+              <button
+                onClick={() => setStyle('waves')}
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold flex items-center gap-1 transition ${
+                  style === 'waves'
+                    ? 'bg-[#E50914] text-white shadow-md'
+                    : 'text-white/60 hover:text-white'
+                }`}
+                title="Ondes Cinéma"
+              >
+                <Waves className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden sm:inline">Ondes</span>
+              </button>
 
-            <button
-              onClick={() => setStyle('pulsar')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
-                style === 'pulsar'
-                  ? 'bg-[#E50914] text-white shadow-md'
-                  : 'text-white/60 hover:text-white'
-              }`}
-              title="Pulsar Cosmique"
-            >
-              <Disc3 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Pulsar</span>
-            </button>
+              <button
+                onClick={() => setStyle('pulsar')}
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold flex items-center gap-1 transition ${
+                  style === 'pulsar'
+                    ? 'bg-[#E50914] text-white shadow-md'
+                    : 'text-white/60 hover:text-white'
+                }`}
+                title="Pulsar Cosmique"
+              >
+                <Disc3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden sm:inline">Pulsar</span>
+              </button>
 
-            <button
-              onClick={() => setStyle('vfd')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
-                style === 'vfd'
-                  ? 'bg-[#E50914] text-white shadow-md'
-                  : 'text-white/60 hover:text-white'
-              }`}
-              title="Studio VFD"
-            >
-              <Activity className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Studio</span>
-            </button>
-          </div>
+              <button
+                onClick={() => setStyle('vfd')}
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold flex items-center gap-1 transition ${
+                  style === 'vfd'
+                    ? 'bg-[#E50914] text-white shadow-md'
+                    : 'text-white/60 hover:text-white'
+                }`}
+                title="Studio VFD"
+              >
+                <Activity className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden sm:inline">Studio</span>
+              </button>
+            </div>
 
-          {/* Top Actions */}
-          <div className="flex items-center gap-2">
+            {/* Top Actions */}
             <button
               onClick={toggleFullscreen}
-              className="p-2 rounded-xl glass hover:bg-white/10 text-white/70 hover:text-white transition"
+              className="p-1.5 sm:p-2 rounded-xl glass hover:bg-white/10 text-white/70 hover:text-white transition shrink-0 hidden xs:flex items-center justify-center min-w-[34px] min-h-[34px]"
               title="Plein écran"
             >
-              <Maximize2 className="w-4 h-4" />
+              <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             <button
               onClick={onClose}
-              className="p-2 rounded-xl glass hover:bg-white/10 text-white/70 hover:text-white transition"
+              className="p-1.5 sm:p-2 rounded-xl glass hover:bg-white/10 text-white/70 hover:text-white transition shrink-0 flex items-center justify-center min-w-[34px] min-h-[34px]"
               title="Fermer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
 
         {/* Central Visualizer Canvas & Station Info */}
-        <div className="flex-1 w-full relative flex items-center justify-center overflow-hidden">
+        <div className="flex-1 w-full relative flex items-center justify-center overflow-hidden p-4">
           {/* Dynamic HTML5 Canvas */}
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
 
           {/* Central Overlay Album / Station Artwork */}
-          <div className="relative z-10 flex flex-col items-center text-center p-4 max-w-md pointer-events-none">
-            <div className="w-28 h-28 md:w-36 md:h-36 rounded-3xl glass p-3 border border-white/20 shadow-2xl flex items-center justify-center mb-4 bg-black/50 accent-glow backdrop-blur-xl">
+          <div className="relative z-10 flex flex-col items-center text-center p-3 sm:p-4 max-w-md pointer-events-none">
+            <div className="w-20 h-20 xs:w-24 xs:h-24 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-2xl sm:rounded-3xl glass p-2 sm:p-3 border border-white/20 shadow-2xl flex items-center justify-center mb-2.5 sm:mb-4 bg-black/50 accent-glow backdrop-blur-xl">
               {currentTrack?.logo ? (
                 <img
                   src={currentTrack.logo}
                   alt={currentTrack.title}
-                  className="w-full h-full object-contain rounded-2xl"
+                  className="w-full h-full object-contain rounded-xl sm:rounded-2xl"
                 />
               ) : (
-                <Radio className="w-14 h-14 text-[#E50914]" />
+                <Radio className="w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 text-[#E50914]" />
               )}
             </div>
 
-            <h3 className="text-xl md:text-2xl font-black text-white drop-shadow-lg tracking-tight">
+            <h3 className="text-base sm:text-xl md:text-2xl font-black text-white drop-shadow-lg tracking-tight truncate max-w-xs sm:max-w-md">
               {currentTrack?.title || 'Aucune radio sélectionnée'}
             </h3>
-            <p className="text-xs md:text-sm text-[#A1A1A6] mt-1 max-w-sm drop-shadow">
+            <p className="text-[11px] sm:text-xs md:text-sm text-[#A1A1A6] mt-0.5 sm:mt-1 max-w-xs sm:max-w-sm drop-shadow truncate">
               {currentTrack?.description || 'Diffusion live en continu'}
             </p>
 
-            <div className="flex items-center gap-2 mt-3 font-mono text-[10px]">
+            <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-3 font-mono text-[9px] sm:text-[10px]">
               <span className="px-2 py-0.5 rounded-full bg-black/60 border border-white/10 text-white/60">
                 128 KBPS • STEREO HD
               </span>
               <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-300">
-                ● FLUX SÉCURISÉ
+                ● FLUX DIRECT
               </span>
             </div>
           </div>
         </div>
 
         {/* Bottom Playback & Tuning Bar */}
-        <div className="p-4 md:p-6 border-t border-white/[0.08] bg-black/60 backdrop-blur-md flex flex-col md:flex-row items-center justify-between gap-4 z-20">
+        <div className="p-3 sm:p-4 md:p-6 border-t border-white/[0.08] bg-black/60 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 z-20">
           {/* Sensitivity slider */}
-          <div className="flex items-center gap-2 text-xs text-white/60 w-full md:w-auto">
-            <Sliders className="w-3.5 h-3.5 text-[#E50914]" />
-            <span className="text-[11px] font-mono">Sensibilité :</span>
+          <div className="flex items-center gap-2 text-xs text-white/60 w-full sm:w-auto justify-between sm:justify-start">
+            <div className="flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-[#E50914] shrink-0" />
+              <span className="text-[10px] sm:text-[11px] font-mono">Sensibilité :</span>
+            </div>
             <input
               type="range"
               min="0.5"
@@ -379,42 +381,43 @@ export function RadioVisualizerModal({ isOpen, onClose }: Props) {
               step="0.1"
               value={sensitivity}
               onChange={(e) => setSensitivity(parseFloat(e.target.value))}
-              className="w-24 accent-[#E50914] h-1 bg-white/10 rounded-lg cursor-pointer"
+              className="w-24 sm:w-28 accent-[#E50914] h-1.5 bg-white/10 rounded-lg cursor-pointer"
             />
           </div>
 
           {/* Central Controls: Prev / Play-Pause / Next */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <button
               onClick={handlePrevStation}
-              className="p-2.5 rounded-xl glass hover:bg-white/10 text-white transition active:scale-95"
+              className="p-2 sm:p-2.5 rounded-xl glass hover:bg-white/10 text-white transition active:scale-95 min-w-[38px] min-h-[38px] flex items-center justify-center cursor-pointer"
               title="Station précédente"
             >
-              <SkipBack className="w-5 h-5" />
+              <SkipBack className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             <button
               onClick={togglePlay}
-              className="w-14 h-14 rounded-2xl bg-[#E50914] hover:bg-[#F40612] text-white flex items-center justify-center shadow-xl shadow-red-950/50 transition-all transform active:scale-95 accent-glow"
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#E50914] hover:bg-[#F40612] text-white flex items-center justify-center shadow-xl shadow-red-950/50 transition-all transform active:scale-95 accent-glow cursor-pointer"
               title={isPlaying ? 'Pause' : 'Lecture'}
             >
-              {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5 fill-current" />}
+              {isPlaying ? <Pause className="w-5 h-5 sm:w-6 sm:h-6" /> : <Play className="w-5 h-5 sm:w-6 sm:h-6 ml-0.5 fill-current" />}
             </button>
 
             <button
               onClick={handleNextStation}
-              className="p-2.5 rounded-xl glass hover:bg-white/10 text-white transition active:scale-95"
+              className="p-2 sm:p-2.5 rounded-xl glass hover:bg-white/10 text-white transition active:scale-95 min-w-[38px] min-h-[38px] flex items-center justify-center cursor-pointer"
               title="Station suivante"
             >
-              <SkipForward className="w-5 h-5" />
+              <SkipForward className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
 
           {/* Volume Control */}
-          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             <button
               onClick={toggleMute}
-              className="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition"
+              className="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition shrink-0"
+              title={isMuted ? 'Activer le son' : 'Couper le son'}
             >
               {isMuted || volume === 0 ? (
                 <VolumeX className="w-4 h-4 text-red-400" />
@@ -429,7 +432,7 @@ export function RadioVisualizerModal({ isOpen, onClose }: Props) {
               step="0.05"
               value={isMuted ? 0 : volume}
               onChange={(e) => setVolume(parseFloat(e.target.value))}
-              className="w-24 accent-[#E50914] h-1 bg-white/10 rounded-lg cursor-pointer"
+              className="w-full sm:w-24 accent-[#E50914] h-1.5 bg-white/10 rounded-lg cursor-pointer"
             />
           </div>
         </div>
