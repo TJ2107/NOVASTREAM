@@ -9,16 +9,24 @@ import { useAppStore } from '../store/useAppStore';
 export const secureUrl = (u: string, headers?: Record<string, string>): string => {
   if (!u) return u;
 
-  // Extract any pipe syntax present in the URL (e.g. url|User-Agent=VLC&Referer=...)
+  // Extract any pipe syntax present in the URL (e.g. url|User-Agent=VLC&Referer=... or url%7C...)
   let pipeHeaders: Record<string, string> = {};
   let cleanUrl = u;
-  if (u.includes('|')) {
-    const parts = u.split('|');
-    cleanUrl = parts[0].trim();
+  if (u.includes('|') || u.includes('%7C') || u.includes('%7c')) {
+    let raw = u;
     try {
-      const sp = new URLSearchParams(parts[1].trim());
-      sp.forEach((v, k) => { pipeHeaders[k] = v; });
+      if (raw.includes('%7C') || raw.includes('%7c')) {
+        raw = decodeURIComponent(raw);
+      }
     } catch {}
+    if (raw.includes('|')) {
+      const parts = raw.split('|');
+      cleanUrl = parts[0].trim();
+      try {
+        const sp = new URLSearchParams(parts[1].trim());
+        sp.forEach((v, k) => { pipeHeaders[k] = v; });
+      } catch {}
+    }
   }
 
   // Retrieve global proxy settings from store if active

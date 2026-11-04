@@ -80,15 +80,18 @@ export function AudioPlayer() {
     return secureUrl(rawUrl);
   }, [rawUrl, useProxy, isLocalFile]);
 
+  const activeUrlRef = useRef<string | null>(null);
+
   // Reset candidate index when track ID changes
   useEffect(() => {
+    activeUrlRef.current = null;
     setCandidateIndex(0);
     setUseProxy(true);
     setCorsMode('anonymous');
     setLoadError(false);
   }, [currentTrack?.id]);
 
-  // Initialize Web Audio API chain
+  // Initialize Web Audio API chain (stable)
   const initWebAudio = useCallback(() => {
     if (!audioRef.current) return;
     try {
@@ -111,26 +114,21 @@ export function AudioPlayer() {
         const bass = ctx.createBiquadFilter();
         bass.type = 'lowshelf';
         bass.frequency.value = 100;
-        bass.gain.value = isSpatialEnabled ? bassGain : 0;
         bassFilterRef.current = bass;
 
         // Treble Filter (High Shelf 8000 Hz)
         const treble = ctx.createBiquadFilter();
         treble.type = 'highshelf';
         treble.frequency.value = 8000;
-        treble.gain.value = isSpatialEnabled ? trebleGain : 0;
         trebleFilterRef.current = treble;
 
         // Stereo Panner (Width)
         const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-        if (panner) {
-          panner.pan.value = isSpatialEnabled ? (stereoWidth - 0.5) * 0.8 : 0;
-        }
         pannerNodeRef.current = panner;
 
         // Dynamics Compressor
         const compressor = ctx.createDynamicsCompressor();
-        compressor.threshold.value = isSpatialEnabled ? -24 : 0;
+        compressor.threshold.value = -24;
         compressor.knee.value = 12;
         compressor.ratio.value = 4;
         compressor.attack.value = 0.003;
@@ -139,7 +137,6 @@ export function AudioPlayer() {
 
         // Master Gain Node (Controlled by Volume slider)
         const gain = ctx.createGain();
-        gain.gain.value = isMuted ? 0 : volume;
         gainNodeRef.current = gain;
 
         // Audio Chain Routing: source -> bass -> treble -> (panner) -> compressor -> gain -> destination
@@ -163,7 +160,7 @@ export function AudioPlayer() {
     } catch (e) {
       console.warn('[Web Audio] Initialization warning, direct fallback active:', e);
     }
-  }, [bassGain, trebleGain, stereoWidth, isSpatialEnabled, volume, isMuted]);
+  }, []);
 
   // Resume Web Audio Context on user gestures
   const resumeAudioContext = useCallback(() => {
@@ -238,7 +235,12 @@ export function AudioPlayer() {
 
   // Handle stream error recovery
   const handleAudioError = useCallback(() => {
-    console.warn('[AudioPlayer] Audio tag error encountered. Trying fallback...');
+    // If HLS is currently handling this m3u8 stream, ignore native tag error
+    if (resolvedUrl?.includes('.m3u8') && hlsRef.current) {
+      return;
+    }
+    console.warn('[AudioPlayer] Genuine audio stream error encountered. Executing fallback recovery...');
+    activeUrlRef.current = null; // force reload for fallback URL
     // If proxy with CORS was used, try direct mode without CORS
     if (useProxy && corsMode === 'anonymous') {
       console.log('[AudioPlayer] Fallback: Retrying stream without strict CORS...');
@@ -254,11 +256,18 @@ export function AudioPlayer() {
       return;
     }
     setLoadError(true);
-  }, [useProxy, corsMode, candidateIndex, candidates.length]);
+  }, [useProxy, corsMode, candidateIndex, candidates.length, resolvedUrl]);
 
-  // Load and attach media source
+  // Load and attach media source (only when resolvedUrl actually changes)
   useEffect(() => {
     if (!currentTrack || !audioRef.current || !resolvedUrl) return;
+
+    // Prevent re-loading or destroying HLS if this exact URL is ALREADY attached and running
+    if (activeUrlRef.current === resolvedUrl && (hlsRef.current || audioRef.current.src)) {
+      return;
+    }
+
+    activeUrlRef.current = resolvedUrl;
     setLoadError(false);
 
     if (hlsRef.current) {
@@ -296,10 +305,7 @@ export function AudioPlayer() {
     }
 
     return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
+      // Clean up only when unmounting or switching to a different track
     };
   }, [resolvedUrl, initWebAudio, resumeAudioContext, handleAudioError]);
 
@@ -488,7 +494,17 @@ export function AudioPlayer() {
           }
         }}
         onEnded={() => pause()}
-        onError={handleAudioError}
+        onError={() => {
+          const audio = audioRef.current;
+          // Ignore false positive error events while HLS is handling stream or if audio element has no active source
+          if (resolvedUrl?.includes('.m3u8') && hlsRef.current) {
+            return;
+          }
+          if (!audio || (!audio.src && !audio.currentSrc)) {
+            return;
+          }
+          handleAudioError();
+        }}
       />
 
       {/* Responsive Studio Audio Player Bottom Sheet */}

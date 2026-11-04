@@ -62,13 +62,15 @@ export function LiveTV() {
     if (!id || channels.length === 0) return;
 
     const handleZapping = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+      const targetTag = (e.target as HTMLElement)?.tagName;
+      if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(targetTag)) return;
 
-      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === 'n') {
+      // Channel zapping via PageDown/PageUp or N/P keys
+      if (e.key === 'PageDown' || e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         const nextIdx = (currentChannelIndex + 1) % channels.length;
         navigate(`/tv/${channels[nextIdx].id}`);
-      } else if (e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === 'p') {
+      } else if (e.key === 'PageUp' || e.key === 'p' || e.key === 'P') {
         e.preventDefault();
         const prevIdx = (currentChannelIndex - 1 + channels.length) % channels.length;
         navigate(`/tv/${channels[prevIdx].id}`);

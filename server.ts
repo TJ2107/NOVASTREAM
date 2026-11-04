@@ -7,19 +7,34 @@ import { Readable } from 'stream';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Allow proxying streams from IPTV providers that use self-signed, IP-based or expired SSL certificates (standard in IPTV/M3U)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 function rewriteM3u8(content: string, baseUrl: string, customHeadersStr?: string): string {
   const extraParam = customHeadersStr ? `&headers=${encodeURIComponent(customHeadersStr)}` : '';
   const lines = content.split('\n');
+  let parsedBase: URL;
+  try {
+    parsedBase = new URL(baseUrl);
+  } catch {
+    parsedBase = new URL('http://localhost');
+  }
+
   return lines.map((line) => {
     const trimmed = line.trim();
     if (!trimmed) return line;
 
     if (trimmed.startsWith('#')) {
       // Rewrite URI attributes in tags such as #EXT-X-KEY, #EXT-X-MAP, #EXT-X-MEDIA, #EXT-X-I-FRAME-STREAM-INF
-      return line.replace(/URI="([^"]+)"/g, (match, uri) => {
+      return line.replace(/URI=(?:"([^"]+)"|([^,>\s]+))/g, (match, qUri, unqUri) => {
+        const rawUri = qUri || unqUri;
         try {
-          const abs = new URL(uri, baseUrl).href;
-          return `URI="/api/proxy?url=${encodeURIComponent(abs)}${extraParam}"`;
+          const abs = new URL(rawUri, baseUrl);
+          // Inherit query parameters (auth tokens, sessions) if relative URI doesn't have its own
+          if (!abs.search && parsedBase.search) {
+            abs.search = parsedBase.search;
+          }
+          return `URI="/api/proxy?url=${encodeURIComponent(abs.href)}${extraParam}"`;
         } catch {
           return match;
         }
@@ -28,8 +43,12 @@ function rewriteM3u8(content: string, baseUrl: string, customHeadersStr?: string
 
     // Segment or sub-playlist line
     try {
-      const abs = new URL(trimmed, baseUrl).href;
-      return `/api/proxy?url=${encodeURIComponent(abs)}${extraParam}`;
+      const abs = new URL(trimmed, baseUrl);
+      // Inherit query parameters (auth tokens, sessions) if relative segment doesn't have its own
+      if (!abs.search && parsedBase.search) {
+        abs.search = parsedBase.search;
+      }
+      return `/api/proxy?url=${encodeURIComponent(abs.href)}${extraParam}`;
     } catch {
       return line;
     }
@@ -56,33 +75,67 @@ async function startServer() {
     }
 
     let targetUrl = rawTargetUrl;
+
+    // Reconstruct full targetUrl if query parameters belonging to the stream were split by Express query parser
+    const urlParamIndex = req.originalUrl.indexOf('url=');
+    if (urlParamIndex !== -1) {
+      let rawFull = req.originalUrl.substring(urlParamIndex + 4);
+      rawFull = rawFull.replace(/&test=1/g, '');
+      const headersMatch = rawFull.match(/&headers=([^&]*)/);
+      if (headersMatch) {
+        rawFull = rawFull.replace(headersMatch[0], '');
+      }
+      try {
+        if (rawFull.startsWith('http%3A') || rawFull.startsWith('https%3A')) {
+          targetUrl = decodeURIComponent(rawFull);
+        } else {
+          targetUrl = rawFull;
+        }
+      } catch {
+        targetUrl = rawFull;
+      }
+    }
+
     try {
       let customHeaders: Record<string, string> = {};
 
       // 1. Support pipe syntax in URL: e.g. http://server.com/live.m3u8|User-Agent=VLC&Referer=https://tv.com
-      if (rawTargetUrl.includes('|')) {
-        const parts = rawTargetUrl.split('|');
-        targetUrl = parts[0].trim();
+      // Handles both decoded '|' and URL-encoded '%7C' or '%7c'
+      let decodedPipeCheck = targetUrl;
+      try {
+        if (decodedPipeCheck.includes('%7C') || decodedPipeCheck.includes('%7c')) {
+          decodedPipeCheck = decodeURIComponent(decodedPipeCheck);
+        }
+      } catch {}
+
+      if (decodedPipeCheck.includes('|')) {
+        const pipeIdx = decodedPipeCheck.indexOf('|');
+        targetUrl = decodedPipeCheck.substring(0, pipeIdx).trim();
+        const pipeParams = decodedPipeCheck.substring(pipeIdx + 1).trim();
         try {
-          const sp = new URLSearchParams(parts[1].trim());
+          const sp = new URLSearchParams(pipeParams);
           sp.forEach((val, key) => {
             customHeaders[key] = val;
           });
         } catch {}
       }
 
-      // 2. Support explicit headers parameter via query: JSON or URL encoded key=value
+      // 2. Support explicit headers parameter via query: JSON or URL encoded key=value or object
       if (req.query.headers) {
         try {
-          const rawH = req.query.headers as string;
-          if (rawH.startsWith('{')) {
-            const parsed = JSON.parse(rawH);
-            customHeaders = { ...customHeaders, ...parsed };
-          } else {
-            const sp = new URLSearchParams(rawH);
-            sp.forEach((val, key) => {
-              customHeaders[key] = val;
-            });
+          const rawH = req.query.headers;
+          if (typeof rawH === 'object' && rawH !== null) {
+            customHeaders = { ...customHeaders, ...(rawH as any) };
+          } else if (typeof rawH === 'string') {
+            if (rawH.startsWith('{')) {
+              const parsed = JSON.parse(rawH);
+              customHeaders = { ...customHeaders, ...parsed };
+            } else {
+              const sp = new URLSearchParams(rawH);
+              sp.forEach((val, key) => {
+                customHeaders[key] = val;
+              });
+            }
           }
         } catch (e) {
           console.warn('Could not parse custom headers param:', e);
@@ -164,6 +217,36 @@ async function startServer() {
         }
       );
 
+      // Domain-specific strategy priority overrides
+      if (parsedTarget.hostname.includes('pluto.tv')) {
+        strategies.unshift({
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Referer': 'https://pluto.tv/',
+            'Origin': 'https://pluto.tv'
+          }
+        });
+      } else if (parsedTarget.hostname.includes('euronews')) {
+        strategies.unshift({
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Referer': 'https://www.euronews.com/',
+            'Origin': 'https://www.euronews.com'
+          }
+        });
+      } else if (parsedTarget.hostname.includes('arte')) {
+        strategies.unshift({
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Referer': 'https://www.arte.tv/',
+            'Origin': 'https://www.arte.tv'
+          }
+        });
+      }
+
       let response: Response | null = null;
       let lastError: any = null;
 
@@ -230,7 +313,8 @@ async function startServer() {
         const text = await response.text();
         const upper = text.toUpperCase();
         if (upper.includes('#EXTM3U') || upper.includes('#EXTINF') || upper.includes('#EXT-X-')) {
-          const rewritten = rewriteM3u8(text, targetUrl, customHeadersStr);
+          const finalBaseUrl = response.url || targetUrl;
+          const rewritten = rewriteM3u8(text, finalBaseUrl, customHeadersStr);
           res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
           res.setHeader('Access-Control-Allow-Origin', '*');
           res.setHeader('Access-Control-Allow-Headers', '*');

@@ -75,13 +75,29 @@ export function VideoPlayer({
   const [editAuth, setEditAuth] = useState(headers?.['Authorization'] || headers?.['authorization'] || '');
 
   useEffect(() => {
-    const nextH = headers || {};
-    setCustomHeaders(nextH);
-    setEditUserAgent(nextH['User-Agent'] || nextH['user-agent'] || '');
-    setEditReferer(nextH['Referer'] || nextH['referer'] || '');
-    setEditOrigin(nextH['Origin'] || nextH['origin'] || '');
-    setEditAuth(nextH['Authorization'] || nextH['authorization'] || '');
-  }, [headers]);
+    let initialH: Record<string, string> = { ...(headers || {}) };
+    if (src && (src.includes('|') || src.includes('%7C') || src.includes('%7c'))) {
+      let rawSrc = src;
+      try {
+        if (rawSrc.includes('%7C') || rawSrc.includes('%7c')) {
+          rawSrc = decodeURIComponent(rawSrc);
+        }
+      } catch {}
+      if (rawSrc.includes('|')) {
+        const pipeIdx = rawSrc.indexOf('|');
+        const pipeParams = rawSrc.substring(pipeIdx + 1).trim();
+        try {
+          const sp = new URLSearchParams(pipeParams);
+          sp.forEach((v, k) => { initialH[k] = v; });
+        } catch {}
+      }
+    }
+    setCustomHeaders(initialH);
+    setEditUserAgent(initialH['User-Agent'] || initialH['user-agent'] || '');
+    setEditReferer(initialH['Referer'] || initialH['referer'] || '');
+    setEditOrigin(initialH['Origin'] || initialH['origin'] || '');
+    setEditAuth(initialH['Authorization'] || initialH['authorization'] || '');
+  }, [src, headers]);
 
   const hasCustomHeaders = Object.keys(customHeaders).length > 0;
   const headerBadgeLabel = useMemo(() => {
@@ -234,7 +250,16 @@ export function VideoPlayer({
   }, [setIsInterfaceVisible]);
 
   const streamCandidates = useMemo(() => {
-    const list = [src, ...(alternativeUrls || [])].filter(Boolean);
+    const cleanRaw = (u: string) => {
+      if (!u) return u;
+      let s = u;
+      try {
+        if (s.includes('%7C') || s.includes('%7c')) s = decodeURIComponent(s);
+      } catch {}
+      return s.includes('|') ? s.split('|')[0].trim() : u.trim();
+    };
+
+    const list = [cleanRaw(src), ...(alternativeUrls || []).map(cleanRaw)].filter(Boolean);
     const added: string[] = [];
     for (const url of list) {
       if (url.includes('.ts')) {
@@ -250,7 +275,10 @@ export function VideoPlayer({
   const [isTestingHttps, setIsTestingHttps] = useState(false);
   const [httpsTestMessage, setHttpsTestMessage] = useState<string | null>(null);
 
+  const activeStreamUrlRef = useRef<string | null>(null);
+
   useEffect(() => {
+    activeStreamUrlRef.current = null;
     setActiveStreamIndex(0);
     setStreamSecurityMode('auto');
     setHttpsTestMessage(null);
@@ -265,22 +293,36 @@ export function VideoPlayer({
 
   // Solution 1 : Tester HTTPS direct | Solution 2 : Proxy HTTPS Worker
   const targetStreamUrl = useMemo(() => {
-    if (streamSecurityMode === 'https-direct' && effectiveSrc.startsWith('http://')) {
-      return effectiveSrc.replace(/^http:\/\//i, 'https://');
+    let cleanSrc = effectiveSrc;
+    try {
+      if (cleanSrc.includes('%7C') || cleanSrc.includes('%7c')) cleanSrc = decodeURIComponent(cleanSrc);
+    } catch {}
+    if (cleanSrc.includes('|')) {
+      cleanSrc = cleanSrc.split('|')[0].trim();
+    }
+
+    if (streamSecurityMode === 'https-direct' && cleanSrc.startsWith('http://')) {
+      return cleanSrc.replace(/^http:\/\//i, 'https://');
     }
     if (streamSecurityMode === 'worker-proxy') {
       const headersParam = Object.keys(customHeaders).length > 0 ? `&headers=${encodeURIComponent(JSON.stringify(customHeaders))}` : '';
-      return `/proxy?url=${encodeURIComponent(effectiveSrc)}${headersParam}`;
+      return `/proxy?url=${encodeURIComponent(cleanSrc)}${headersParam}`;
     }
-    return secureUrl(effectiveSrc, customHeaders);
+    return secureUrl(cleanSrc, customHeaders);
   }, [effectiveSrc, streamSecurityMode, customHeaders]);
 
   const handleTestHttps = async () => {
     setIsTestingHttps(true);
     setHttpsTestMessage(null);
+    activeStreamUrlRef.current = null;
+    let cleanSrc = effectiveSrc;
     try {
-      const { supported, url: testedUrl } = await testHttpsAlternative(effectiveSrc);
-      if (supported && testedUrl !== effectiveSrc) {
+      if (cleanSrc.includes('%7C') || cleanSrc.includes('%7c')) cleanSrc = decodeURIComponent(cleanSrc);
+    } catch {}
+    if (cleanSrc.includes('|')) cleanSrc = cleanSrc.split('|')[0].trim();
+    try {
+      const { supported, url: testedUrl } = await testHttpsAlternative(cleanSrc);
+      if (supported && testedUrl !== cleanSrc) {
         setHttpsTestMessage('✅ Le serveur du fournisseur gère le HTTPS direct !');
         setStreamSecurityMode('https-direct');
       } else {
@@ -297,6 +339,7 @@ export function VideoPlayer({
   };
 
   const handleForceWorkerProxy = () => {
+    activeStreamUrlRef.current = null;
     setStreamSecurityMode('worker-proxy');
     setHttpsTestMessage('⚡ Proxy Worker Nova HTTPS actif (réécriture M3U8 et bypass CORS).');
     setTimeout(() => initializePlayer(), 300);
@@ -306,6 +349,12 @@ export function VideoPlayer({
     const video = videoRef.current;
     if (!video || isIframe) return;
 
+    // Prevent re-attaching or resetting playback if this exact stream URL is ALREADY active and playing
+    if (activeStreamUrlRef.current === targetStreamUrl && (hlsRef.current || video.src)) {
+      return;
+    }
+
+    activeStreamUrlRef.current = targetStreamUrl;
     setErrorMessage(null);
     setIsBuffering(true);
 
@@ -482,43 +531,53 @@ export function VideoPlayer({
       switch (e.key) {
         case ' ':
           e.preventDefault();
+          e.stopPropagation();
           togglePlay();
           break;
         case 'k':
         case 'K':
+          e.stopPropagation();
           togglePlay();
           break;
         case 'f':
         case 'F':
           e.preventDefault();
+          e.stopPropagation();
           toggleFullscreen();
           break;
         case 'm':
         case 'M':
+          e.stopPropagation();
           toggleMute();
           break;
         case 'ArrowLeft':
           e.preventDefault();
+          e.stopPropagation();
           skip(-10);
           break;
         case 'ArrowRight':
           e.preventDefault();
+          e.stopPropagation();
           skip(10);
           break;
         case 'ArrowUp':
           e.preventDefault();
+          e.stopPropagation();
           setVolume(Math.min(1, volume + 0.1));
           break;
         case 'ArrowDown':
           e.preventDefault();
+          e.stopPropagation();
           setVolume(Math.max(0, volume - 0.1));
           break;
         case 'p':
         case 'P':
+          e.stopPropagation();
           togglePiP();
           break;
         case 'c':
         case 'C':
+          e.stopPropagation();
           setIsCastModalOpen(prev => !prev);
           break;
       }
@@ -1522,7 +1581,9 @@ export function VideoPlayer({
                   setEditOrigin('');
                   setEditAuth('');
                   setCustomHeaders({});
+                  activeStreamUrlRef.current = null;
                   setIsHeadersModalOpen(false);
+                  setTimeout(() => initializePlayer(), 100);
                 }}
                 className="px-3 py-2 text-xs text-white/60 hover:text-white transition"
               >
@@ -1546,7 +1607,9 @@ export function VideoPlayer({
                     if (editOrigin.trim()) built['Origin'] = editOrigin.trim();
                     if (editAuth.trim()) built['Authorization'] = editAuth.trim();
                     setCustomHeaders(built);
+                    activeStreamUrlRef.current = null;
                     setIsHeadersModalOpen(false);
+                    setTimeout(() => initializePlayer(), 100);
                   }}
                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition shadow-lg shadow-purple-900/40"
                 >

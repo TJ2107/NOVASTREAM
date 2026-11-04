@@ -8,13 +8,16 @@ export function useTVRemoteNavigation() {
     if (!tvMode) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement as HTMLElement;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName)) return;
+
       const focusables = Array.from(
         document.querySelectorAll('.tv-focusable, button, a, input, select')
       ) as HTMLElement[];
 
       if (focusables.length === 0) return;
 
-      const currentIndex = focusables.indexOf(document.activeElement as HTMLElement);
+      const currentIndex = focusables.indexOf(activeEl);
 
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
         e.preventDefault();
@@ -24,11 +27,10 @@ export function useTVRemoteNavigation() {
         e.preventDefault();
         const prevIndex = currentIndex > 0 ? currentIndex - 1 : focusables.length - 1;
         focusables[prevIndex]?.focus();
-      } else if (e.key === 'Enter' || e.key === ' ') {
-        // If focused element is not an input/button, trigger click
-        const active = document.activeElement as HTMLElement;
-        if (active && active !== document.body) {
-          active.click();
+      } else if (e.key === 'Enter') {
+        // Trigger click only on custom tv-focusable elements (buttons, links, etc. handle native click)
+        if (activeEl && activeEl !== document.body && activeEl.tagName !== 'BUTTON' && activeEl.tagName !== 'A' && activeEl.tagName !== 'INPUT') {
+          activeEl.click();
         }
       }
     };
