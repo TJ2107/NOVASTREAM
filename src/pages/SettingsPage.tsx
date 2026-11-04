@@ -39,12 +39,23 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { db } from '../lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAppStore, DEFAULT_PROXY_CONFIG, VPN_SERVERS, type GlobalProxyConfig, type VPNServer } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { updateUserSubscription, activatePremiumByEmail, submitPendingPayment } from '../services/analyticsService';
+import { updateUserSubscription, submitPendingPayment } from '../services/analyticsService';
 import { testProxyStreamConnection, type ProxyProbeResult } from '../services/secureStream';
 import { VPNBadge } from '../components/common/VPNBadge';
 import { DnsHelpModal } from '../components/common/DnsHelpModal';
+import {
+  CURRENT_APP_VERSION,
+  getInstalledVersion,
+  isVersionInstalled,
+  installAppUpdate,
+  getLatestAppUpdate,
+  resetDismissedUpdate,
+  type AppUpdateInfo
+} from '../services/UpdateService';
 
 export function SettingsPage() {
   const { user, isAdmin, signOut } = useAuthStore();
@@ -103,6 +114,81 @@ export function SettingsPage() {
     txRef: string;
     autoApproved?: boolean;
   } | null>(null);
+
+  const [userPendingPayment, setUserPendingPayment] = useState<any>(null);
+  const [installedVersion, setInstalledVersion] = useState<string>(() => getInstalledVersion());
+  const [systemUpdate, setSystemUpdate] = useState<AppUpdateInfo | null>(null);
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
+  const [updateCheckStatus, setUpdateCheckStatus] = useState<string | null>(null);
+  const [isInstallingUpdate, setIsInstallingUpdate] = useState(false);
+
+  // Sync installed version if updated anywhere across app
+  useEffect(() => {
+    const handleUpdateInstalled = (e: any) => {
+      const v = e?.detail?.version || getInstalledVersion();
+      setInstalledVersion(v);
+      setSystemUpdate(null);
+      setUpdateCheckStatus(`NOVASTREAM est parfaitement à jour (v${v}).`);
+    };
+    window.addEventListener('novastream_update_installed', handleUpdateInstalled);
+    return () => window.removeEventListener('novastream_update_installed', handleUpdateInstalled);
+  }, []);
+
+  // Real-time listener for current user's pending payments
+  useEffect(() => {
+    if (!user?.email) {
+      setUserPendingPayment(null);
+      return;
+    }
+    const q = query(
+      collection(db, 'payments'),
+      where('targetEmail', '==', user.email.toLowerCase()),
+      where('status', '==', 'pending')
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      if (!snap.empty) {
+        const item = { id: snap.docs[0].id, ...(snap.docs[0].data() as any) };
+        setUserPendingPayment(item);
+      } else {
+        setUserPendingPayment(null);
+      }
+    }, (err) => {
+      console.warn('Pending payments listener handled:', err);
+    });
+    return () => unsub();
+  }, [user]);
+
+  const handleManualCheckUpdate = async () => {
+    setIsCheckingUpdates(true);
+    setUpdateCheckStatus('Vérification auprès des serveurs...');
+    try {
+      const latest = await getLatestAppUpdate();
+      const current = getInstalledVersion();
+      if (latest && latest.version !== current && !isVersionInstalled(latest.version)) {
+        setSystemUpdate(latest);
+        setUpdateCheckStatus(`Nouvelle version v${latest.version} disponible avec des modifications !`);
+      } else {
+        setSystemUpdate(null);
+        setUpdateCheckStatus(`NOVASTREAM est parfaitement à jour (v${current}).`);
+      }
+    } catch {
+      setUpdateCheckStatus(`Version actuelle v${getInstalledVersion()} active.`);
+    } finally {
+      setIsCheckingUpdates(false);
+    }
+  };
+
+  const handleApplyUpdateFromSettings = (version: string) => {
+    setIsInstallingUpdate(true);
+    setTimeout(() => {
+      installAppUpdate(version);
+      setInstalledVersion(version);
+      setSystemUpdate(null); // The update info disappears immediately upon installation!
+      setIsInstallingUpdate(false);
+      setUpdateCheckStatus(`Mise à jour v${version} installée avec succès !`);
+      showToast(`Mise à jour v${version} installée ! Tous les composants sont synchronisés.`);
+    }, 1200);
+  };
 
   const [vpnConnectedTime, setVpnConnectedTime] = useState<string>('00:00:00');
   const [vpnTestResult, setVpnTestResult] = useState<{ domain: string; status: 'ok' | 'blocked'; latency: number } | null>(null);
@@ -350,6 +436,26 @@ export function SettingsPage() {
                 <h3 className="text-base font-black text-white">NovaStream Premium</h3>
                 <p className="text-xs text-amber-400 font-bold mt-0.5">5 $ <span className="text-white/60 font-normal">/ mois (3 000 FCFA)</span></p>
               </div>
+
+              {/* Transaction En Attente de Validation */}
+              {userPendingPayment && subscriptionPlan !== 'premium' && (
+                <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/40 space-y-1.5 animate-pulse">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-amber-300 font-bold flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-400" /> Transaction en attente
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold">
+                      Validation en cours
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-white/90">
+                    Réf : <code className="text-amber-200 font-bold">{userPendingPayment.transactionRef}</code> ({userPendingPayment.operator || 'Mobile Money'})
+                  </p>
+                  <p className="text-[10px] text-white/60 leading-relaxed">
+                    Votre paiement a bien été soumis. Votre compte sera activé en VIP Sans Pub dès vérification effective par l'administrateur.
+                  </p>
+                </div>
+              )}
 
               {/* Real-time Expiration Status & Remaining Days */}
               {subscriptionPlan === 'premium' && subscriptionExpiresAt && (
@@ -708,71 +814,175 @@ export function SettingsPage() {
                 type="button"
                 onClick={async () => {
                   setPayError(null);
-                  if (paymentMethod === 'mobile_money') {
-                    const email1 = targetAccountEmail.trim().toLowerCase();
-                    const email2 = confirmAccountEmail.trim().toLowerCase();
-                    const phone = senderPhoneNumber.trim();
+                  const email1 = targetAccountEmail.trim().toLowerCase();
+                  const email2 = confirmAccountEmail.trim().toLowerCase();
+                  const phone = senderPhoneNumber.trim();
 
-                    if (!phone) {
-                      setPayError('Veuillez indiquer le numéro ayant envoyé les fonds.');
-                      return;
-                    }
-                    if (!email1 || !email1.includes('@')) {
-                      setPayError('Veuillez saisir une adresse email valide.');
-                      return;
-                    }
-                    if (email1 !== email2) {
-                      setPayError('Les deux adresses email saisies ne correspondent pas.');
-                      return;
-                    }
+                  if (!phone) {
+                    setPayError('Veuillez indiquer le numéro ayant envoyé les fonds.');
+                    return;
+                  }
+                  if (!email1 || !email1.includes('@')) {
+                    setPayError('Veuillez saisir une adresse email valide.');
+                    return;
+                  }
+                  if (email1 !== email2) {
+                    setPayError('Les deux adresses email saisies ne correspondent pas.');
+                    return;
+                  }
 
-                    setIsProcessingPayment(true);
-                    try {
-                      // Submit pending payment to Firestore for admin review
-                      const tx = transactionRef.trim() || `AIRTEL-${Date.now().toString().slice(-6)}`;
-                      await submitPendingPayment({
-                        targetEmail: email1,
-                        userId: user?.uid,
-                        userName: user?.displayName || 'Client',
-                        senderPhone: phone,
-                        transactionRef: tx,
-                        operator: mobileOperator === 'airtel' ? 'Airtel Money (+242)' : 'MTN Mobile Money (+242)',
-                        amount: '5,00 $ (3 000 FCFA)',
-                        durationMonths: 1
-                      });
+                  setIsProcessingPayment(true);
+                  try {
+                    const tx = transactionRef.trim() || `${mobileOperator === 'airtel' ? 'AIRTEL' : 'MTN'}-${Date.now().toString().slice(-6)}`;
+                    const operatorLabel = paymentMethod === 'mobile_money'
+                      ? (mobileOperator === 'airtel' ? 'Airtel Money (+242)' : 'MTN Mobile Money (+242)')
+                      : (paymentMethod === 'card' ? 'Carte Bancaire (En attente)' : 'Google Pay (En attente)');
 
-                      setShowPayModal(false);
-                      setPaymentSubmittedData({
-                        email: email1,
-                        phone: phone,
-                        txRef: tx
-                      });
-                    } catch (err: any) {
-                      setPayError(err?.message || 'Erreur lors de la transmission du paiement.');
-                    } finally {
-                      setIsProcessingPayment(false);
-                    }
-                  } else {
-                    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-                    setSubscriptionPlan('premium', expiresAt);
-                    if (user?.uid) {
-                      await updateUserSubscription(user.uid, 'premium', expiresAt);
-                    }
+                    // Submit pending payment to Firestore with status 'pending'
+                    // IMPORTANT: Premium is ONLY activated after administrator verifies and approves the payment!
+                    await submitPendingPayment({
+                      targetEmail: email1,
+                      userId: user?.uid,
+                      userName: user?.displayName || 'Client',
+                      senderPhone: phone,
+                      transactionRef: tx,
+                      operator: operatorLabel,
+                      amount: '5,00 $ (3 000 FCFA)',
+                      durationMonths: 1
+                    });
+
                     setShowPayModal(false);
-                    showToast('🎉 Félicitations ! Votre abonnement Premium 5$/mois sans pub est activé pour 1 mois !');
+                    setPaymentSubmittedData({
+                      email: email1,
+                      phone: phone,
+                      txRef: tx
+                    });
+                    showToast('Demande de paiement transmise ! Statut : En attente de validation administrateur.');
+                  } catch (err: any) {
+                    setPayError(err?.message || 'Erreur lors de la transmission du paiement.');
+                  } finally {
+                    setIsProcessingPayment(false);
                   }
                 }}
                 disabled={isProcessingPayment}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>{isProcessingPayment ? 'Enregistrement...' : 'Valider mon Paiement (5$)'}</span>
+                <span>{isProcessingPayment ? 'Transmission...' : 'Soumettre mon Paiement (5$)'}</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
+
+      {/* Section Mises à jour du Système & Détection en Ligne */}
+      <div className="glass-strong rounded-3xl p-6 md:p-8 border border-white/10 space-y-5 shadow-2xl relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold border border-cyan-500/30">
+              <RefreshCw className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base md:text-xl font-black text-white">🔄 Mises à jour du Système</h2>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold">
+                  v{installedVersion}
+                </span>
+              </div>
+              <p className="text-[11px] md:text-xs text-white/60">
+                Consultez les détails des modifications apportées et installez les dernières améliorations en 1 clic.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleManualCheckUpdate}
+            disabled={isCheckingUpdates}
+            className="px-4 py-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 text-cyan-300 hover:text-white text-xs font-bold transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${isCheckingUpdates ? 'animate-spin' : ''}`} />
+            <span>{isCheckingUpdates ? 'Recherche...' : 'Rechercher une mise à jour'}</span>
+          </button>
+        </div>
+
+        {/* Status message */}
+        {updateCheckStatus && (
+          <div className="p-3.5 rounded-2xl bg-white/5 border border-cyan-500/30 text-xs font-mono text-cyan-200">
+            {updateCheckStatus}
+          </div>
+        )}
+
+        {/* Detailed Update Available Box (Contains modifications made) */}
+        {systemUpdate && systemUpdate.version !== installedVersion && (
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-950/50 via-[#0a1224] to-black border border-emerald-500/40 space-y-4 shadow-xl animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="w-5 h-5 text-emerald-400 animate-pulse" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-white">
+                      Mise à jour v{systemUpdate.version} disponible
+                    </span>
+                    <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">
+                      NOUVEAU
+                    </span>
+                  </div>
+                  <span className="text-xs text-emerald-300 font-bold block">{systemUpdate.title}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => handleApplyUpdateFromSettings(systemUpdate.version)}
+                disabled={isInstallingUpdate}
+                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-extrabold text-xs transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isInstallingUpdate ? 'animate-spin' : ''}`} />
+                <span>{isInstallingUpdate ? 'Installation...' : 'Installer cette mise à jour'}</span>
+              </button>
+            </div>
+
+            {systemUpdate.description && (
+              <p className="text-xs text-white/70 leading-relaxed">
+                {systemUpdate.description}
+              </p>
+            )}
+
+            {/* List of modifications made */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-white/90 block">
+                📋 Détail des modifications apportées dans la version v{systemUpdate.version} :
+              </span>
+              <div className="space-y-1.5 bg-black/50 p-3 rounded-xl border border-white/10">
+                {systemUpdate.releaseNotes.map((note, idx) => (
+                  <div key={idx} className="flex items-start gap-2 text-xs text-white/80">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{note}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-[10px] text-white/40 font-mono">
+              💡 Dès que vous cliquez sur "Installer", la mise à jour s'applique et cette information disparaît.
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
+            <span className="text-white/40 text-[10px] uppercase font-mono">Version installée</span>
+            <p className="text-white font-bold font-mono">v{installedVersion}</p>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
+            <span className="text-white/40 text-[10px] uppercase font-mono">Canal de diffusion</span>
+            <p className="text-emerald-400 font-bold font-mono">Stable Production (Direct PWA)</p>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
+            <span className="text-white/40 text-[10px] uppercase font-mono">Signalement des alertes</span>
+            <p className="text-cyan-300 font-bold font-mono">Synchronisé en temps réel</p>
+          </div>
+        </div>
+      </div>
 
       {/* Section VPN & Sécurité Chiffrée */}
       <div className="glass-strong rounded-3xl p-6 md:p-8 border border-emerald-500/30 space-y-6 shadow-2xl relative overflow-hidden">

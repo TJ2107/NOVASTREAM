@@ -2,6 +2,7 @@ import { db, auth } from '../lib/firebase';
 import { useAppStore } from '../store/useAppStore';
 import { 
   doc, 
+  getDoc,
   setDoc, 
   serverTimestamp, 
   arrayUnion, 
@@ -40,29 +41,41 @@ export function getTodayKey(): string {
 
 export async function recordUserDailyLogin(
   user: { uid: string; displayName?: string | null; email?: string | null; photoURL?: string | null },
-  isAdmin: boolean,
-  subscriptionPlan: 'free' | 'premium' = 'free'
+  isAdmin: boolean
 ) {
   if (!user?.uid) return;
 
   const todayKey = getTodayKey();
-  const userData = {
-    uid: user.uid,
-    name: user.displayName || 'Utilisateur',
-    email: user.email || '',
-    photoURL: user.photoURL || '',
-    role: isAdmin ? 'admin' : 'user',
-    subscriptionPlan: subscriptionPlan || 'free',
-    lastLogin: serverTimestamp(),
-    lastLoginDate: todayKey
-  };
 
   try {
-    // 1. Update user document with lastLogin, lastLoginDate, subscription and history array
-    await setDoc(doc(db, 'users', user.uid), {
-      ...userData,
+    const userDocRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userDocRef);
+    const exists = userSnap.exists();
+    const existingData = exists ? userSnap.data() : null;
+
+    const userData: Record<string, any> = {
+      uid: user.uid,
+      name: user.displayName || 'Utilisateur',
+      email: user.email || '',
+      photoURL: user.photoURL || '',
+      role: isAdmin ? 'admin' : 'user',
+      lastLogin: serverTimestamp(),
+      lastLoginDate: todayKey,
       loginDates: arrayUnion(todayKey)
-    }, { merge: true });
+    };
+
+    // If new user or no subscriptionPlan set in Firestore yet, initialize to 'free'
+    if (!existingData || !existingData.subscriptionPlan) {
+      userData.subscriptionPlan = 'free';
+      userData.subscriptionExpiresAt = null;
+    }
+
+    if (!exists || !existingData?.createdAt) {
+      userData.createdAt = serverTimestamp();
+    }
+
+    // 1. Update user document without overwriting verified subscription
+    await setDoc(userDocRef, userData, { merge: true });
 
     // 2. Update daily_stats document for today
     await setDoc(doc(db, 'daily_stats', todayKey), {
@@ -70,25 +83,22 @@ export async function recordUserDailyLogin(
       lastUpdated: serverTimestamp()
     }, { merge: true });
 
-    // 3. Record distinct user login in subcollection with subscriptionPlan
+    // 3. Record distinct user login in subcollection
+    const currentPlan = existingData?.subscriptionPlan || 'free';
     await setDoc(doc(db, 'daily_stats', todayKey, 'logins', user.uid), {
       uid: user.uid,
       name: user.displayName || 'Utilisateur',
       email: user.email || '',
       photoURL: user.photoURL || '',
       role: isAdmin ? 'admin' : 'user',
-      subscriptionPlan: subscriptionPlan || 'free',
+      subscriptionPlan: currentPlan,
       timestamp: serverTimestamp(),
       loginDate: todayKey
     }, { merge: true });
 
-    // 4. Notify admin of new user if it's their first time login (check by field existence)
-    // We check if this is the first time they are logging in by checking a 'created_at' field
-    const userDocRef = doc(db, 'users', user.uid);
-    const userSnap = await import('firebase/firestore').then(f => f.getDoc(userDocRef));
-    if (!userSnap.exists() || !userSnap.data().createdAt) {
-      await setDoc(doc(db, 'users', user.uid), { createdAt: serverTimestamp() }, { merge: true });
-      await setDoc(doc(collection(db, 'notifications')), {
+    // 4. Notify admin of new user if it's their first time login
+    if (!exists || !existingData?.createdAt) {
+      await addDoc(collection(db, 'notifications'), {
         type: 'new_user',
         userId: user.uid,
         userName: user.displayName || 'Utilisateur',
@@ -193,10 +203,35 @@ export async function submitPendingPayment(details: {
       createdAt: serverTimestamp()
     });
 
-    // 2. Create notification for admin
+    // 2. Mark user document as having a pending payment (without giving premium status)
+    if (details.userId) {
+      await setDoc(doc(db, 'users', details.userId), {
+        hasPendingPayment: true,
+        lastPendingPaymentId: docRef.id,
+        lastPendingPaymentRef: txRef,
+        lastPendingPaymentOperator: operator,
+        lastPendingPaymentAt: serverTimestamp()
+      }, { merge: true });
+    } else {
+      // Find matching user by email
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('email', '==', normalizedEmail));
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        await setDoc(doc(db, 'users', d.id), {
+          hasPendingPayment: true,
+          lastPendingPaymentId: docRef.id,
+          lastPendingPaymentRef: txRef,
+          lastPendingPaymentOperator: operator,
+          lastPendingPaymentAt: serverTimestamp()
+        }, { merge: true });
+      }
+    }
+
+    // 3. Create notification for admin
     await addDoc(collection(db, 'notifications'), {
       type: 'payment_pending',
-      title: 'Nouveau Paiement Airtel Money à valider',
+      title: 'Nouveau Paiement Mobile Money à valider',
       userEmail: normalizedEmail,
       message: `Paiement ${amount} soumis via ${operator} (N° expéditeur : ${details.senderPhone}). Réf : ${txRef}. En attente de validation administrateur.`,
       timestamp: serverTimestamp(),
@@ -245,9 +280,11 @@ export async function approvePayment(
         subscriptionPlan: 'premium',
         subscriptionExpiresAt: expiresAt,
         subscriptionStartedAt: serverTimestamp(),
-        subscriptionMethod: 'Airtel Money (+242053886817)',
+        subscriptionMethod: 'Airtel / MTN Mobile Money',
         subscriptionApprovedBy: adminEmail,
-        subscriptionApprovedAt: serverTimestamp()
+        subscriptionApprovedAt: serverTimestamp(),
+        hasPendingPayment: false,
+        lastPendingPaymentId: null
       }, { merge: true });
 
       // Update today's login stats if exists
@@ -259,7 +296,7 @@ export async function approvePayment(
     // 3. Create success notification
     await addDoc(collection(db, 'notifications'), {
       type: 'payment_approved',
-      title: 'Paiement Airtel Money Validé',
+      title: 'Paiement Mobile Money Validé',
       userEmail: normalizedEmail,
       message: `L'administrateur a validé le paiement pour ${normalizedEmail}. Abonnement VIP actif jusqu'au ${new Date(expiresAt).toLocaleDateString('fr-FR')}.`,
       timestamp: serverTimestamp(),
@@ -292,9 +329,21 @@ export async function rejectPayment(
       rejectionReason: reason
     }, { merge: true });
 
+    // Clear pending state on user document
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', normalizedEmail));
+    const snap = await getDocs(q);
+    for (const docSnap of snap.docs) {
+      await setDoc(doc(db, 'users', docSnap.id), {
+        hasPendingPayment: false,
+        pendingPaymentRejectedAt: serverTimestamp(),
+        lastRejectionReason: reason
+      }, { merge: true });
+    }
+
     await addDoc(collection(db, 'notifications'), {
       type: 'payment_rejected',
-      title: 'Paiement Airtel Money Non Validé',
+      title: 'Paiement Non Validé',
       userEmail: normalizedEmail,
       message: `Paiement rejeté pour ${normalizedEmail} : ${reason}`,
       timestamp: serverTimestamp(),

@@ -64,6 +64,7 @@ import {
   deleteAllReadNotifications,
   subscribeToAdminNotifications
 } from '../services/notificationService';
+import { publishAppUpdate } from '../services/UpdateService';
 import { Link } from 'react-router-dom';
 
 interface UserLog {
@@ -130,6 +131,19 @@ export default function AdminPage() {
   const [msgPinned, setMsgPinned] = useState(false);
   const [isSendingMsg, setIsSendingMsg] = useState(false);
   const [sendSuccessMsg, setSendSuccessMsg] = useState('');
+
+  // Dedicated System Update Deployment State
+  const [updateVersion, setUpdateVersion] = useState('3.1.0');
+  const [updateTitle, setUpdateTitle] = useState('NOVASTREAM v3.1.0 — Résolution Lecteur Vidéo & Stabilité');
+  const [updateDescription, setUpdateDescription] = useState('Mise à jour majeure améliorant la stabilité du lecteur vidéo, les flux direct TV et la sécurité des comptes.');
+  const [updateNotes, setUpdateNotes] = useState(
+    '✨ Console Studio Audio 3D repensée avec contrôle d\'égalisation acoustique\n' +
+    '🛠️ Correction du comportement du lecteur lors des interactions utilisateur (ne reprend plus à zéro)\n' +
+    '⚡ Optimisation des flux IPTV libres avec contournement anti-coupures et détection réseau\n' +
+    '🔒 Système de validation sécurisée des abonnements Airtel Money & MTN Mobile Money'
+  );
+  const [isPublishingUpdate, setIsPublishingUpdate] = useState(false);
+  const [updatePublishSuccess, setUpdatePublishSuccess] = useState<string | null>(null);
   
   const todayKey = useMemo(() => getTodayKey(), []);
   const [selectedDate, setSelectedDate] = useState<string>(todayKey);
@@ -227,7 +241,20 @@ export default function AdminPage() {
         pinned: msgPinned
       });
 
-      setSendSuccessMsg('Message diffusé avec succès à tous les abonnés !');
+      // If the announcement is an app update, synchronously broadcast to app_meta/version
+      if (msgType === 'update') {
+        const notes = msgContent.split('\n').map((s) => s.trim()).filter(Boolean);
+        const versionMatch = msgTitle.match(/v\d+(\.\d+)*/);
+        const ver = versionMatch ? versionMatch[0].replace('v', '') : '3.0.0';
+        await publishAppUpdate({
+          version: ver,
+          title: msgTitle,
+          releaseNotes: notes.length > 0 ? notes : [msgContent],
+          forceShow: true
+        }, user?.email || 'cyber.kan587@gmail.com');
+      }
+
+      setSendSuccessMsg('Message et mise à jour diffusés avec succès à tous les abonnés !');
       setMsgTitle('');
       setMsgContent('');
       setMsgPriority('normal');
@@ -237,6 +264,55 @@ export default function AdminPage() {
       console.error('Failed to send announcement:', err);
     } finally {
       setIsSendingMsg(false);
+    }
+  };
+
+  const handlePublishOfficialUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!updateVersion.trim() || !updateTitle.trim() || !updateNotes.trim()) return;
+
+    setIsPublishingUpdate(true);
+    setUpdatePublishSuccess('');
+    try {
+      const notes = updateNotes
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const cleanVer = updateVersion.trim().replace(/^v/, '');
+
+      // 1. Publish to app_meta/version for real-time modal delivery and system updates
+      await publishAppUpdate({
+        version: cleanVer,
+        title: updateTitle.trim(),
+        description: updateDescription.trim(),
+        releaseNotes: notes,
+        forceShow: true
+      }, user?.email || 'cyber.kan587@gmail.com');
+
+      // 2. Also register in announcements collection so it is permanently logged
+      await createAnnouncement({
+        title: updateTitle.trim(),
+        content: notes.join('\n'),
+        type: 'update',
+        priority: 'urgent',
+        target: 'all',
+        targetEmail: '',
+        authorName: user?.displayName || 'Administrateur NOVASTREAM',
+        authorEmail: user?.email || 'cyber.kan587@gmail.com',
+        pinned: true
+      });
+
+      setUpdatePublishSuccess(`🎉 Mise à jour v${cleanVer} diffusée avec succès ! Les modifications et la notification s'affichent instantanément chez tous les utilisateurs.`);
+      setAdminActionToast(`Mise à jour v${cleanVer} diffusée avec succès !`);
+      setTimeout(() => setUpdatePublishSuccess(''), 6000);
+      setTimeout(() => setAdminActionToast(null), 6000);
+    } catch (err: any) {
+      console.error(err);
+      setUpdatePublishSuccess(`Erreur lors de la diffusion : ${err?.message || 'Échec'}`);
+      setTimeout(() => setUpdatePublishSuccess(''), 6000);
+    } finally {
+      setIsPublishingUpdate(false);
     }
   };
 
@@ -1421,6 +1497,40 @@ export default function AdminPage() {
                         {p.approvedBy && <span>Validé par : {p.approvedBy}</span>}
                         {p.rejectionReason && <span className="text-rose-300">Raison : {p.rejectionReason}</span>}
                       </div>
+
+                      {p.status === 'pending' && (
+                        <div className="flex items-center gap-2 pt-1 border-t border-white/5">
+                          <button
+                            onClick={async () => {
+                              if (!p.id) return;
+                              setActionLoadingId(p.id);
+                              try {
+                                const res = await approvePayment(p.id, p.targetEmail, 30, user?.email || 'cyber.kan587@gmail.com');
+                                setAdminActionToast(`Paiement validé pour ${p.targetEmail} ! VIP actif jusqu'au ${new Date(res.expiresAt).toLocaleDateString('fr-FR')}.`);
+                                setTimeout(() => setAdminActionToast(null), 5000);
+                              } finally {
+                                setActionLoadingId(null);
+                              }
+                            }}
+                            disabled={actionLoadingId === p.id}
+                            className="flex-1 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs transition cursor-pointer text-center"
+                          >
+                            Valider 30j
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRejectModal({
+                                open: true,
+                                payment: p,
+                                reason: 'Fonds non reçus sur le compte Airtel Money (+242053886817)'
+                              });
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold text-xs hover:bg-rose-500/30 transition cursor-pointer"
+                          >
+                            Rejeter
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2099,6 +2209,121 @@ export default function AdminPage() {
                 {announcementsList.filter((a) => a.active).length} actif(s) en direct
               </span>
             </div>
+          </div>
+
+          {/* SECTION DÉDIÉE : DÉPLOIEMENT & PUBLICATION D'UNE MISE À JOUR SYSTÈME */}
+          <div className="p-5 sm:p-6 rounded-3xl glass-strong border border-emerald-500/40 bg-gradient-to-br from-emerald-950/40 via-[#0a1224] to-black space-y-5 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-black flex items-center justify-center font-bold shadow-lg shadow-emerald-950/50 flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-black" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm sm:text-base font-black text-white">
+                      Déployer une Mise à Jour avec Détails des Modifications
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold">
+                      TEMPS RÉEL
+                    </span>
+                  </div>
+                  <p className="text-xs text-white/60 mt-0.5">
+                    Publiez les notes de version détaillant les modifications faites. Dès qu'un utilisateur installe la mise à jour, l'information disparaît de son écran.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {updatePublishSuccess && (
+              <div className="p-3.5 rounded-2xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 text-xs flex items-center gap-2.5 animate-fadeIn shadow-xl relative z-10">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span className="font-semibold">{updatePublishSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handlePublishOfficialUpdate} className="space-y-4 relative z-10">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-emerald-300 block mb-1">
+                    Numéro de version :
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-xs font-mono font-bold">v</span>
+                    <input
+                      type="text"
+                      value={updateVersion}
+                      onChange={(e) => setUpdateVersion(e.target.value)}
+                      placeholder="3.1.0"
+                      required
+                      className="w-full pl-7 pr-3 py-2.5 rounded-xl bg-white/5 border border-white/15 text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-400 transition"
+                    />
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] font-bold text-white/80 block mb-1">
+                    Titre officiel de la mise à jour :
+                  </label>
+                  <input
+                    type="text"
+                    value={updateTitle}
+                    onChange={(e) => setUpdateTitle(e.target.value)}
+                    placeholder="NOVASTREAM v3.1.0 — Résolution Lecteur Vidéo & Stabilité"
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-xs text-white placeholder-white/30 focus:outline-none focus:border-emerald-400 transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-white/80 block mb-1">
+                  Description succincte :
+                </label>
+                <input
+                  type="text"
+                  value={updateDescription}
+                  onChange={(e) => setUpdateDescription(e.target.value)}
+                  placeholder="Mise à jour majeure améliorant la stabilité du lecteur vidéo, les flux direct TV et la sécurité des comptes."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-xs text-white placeholder-white/30 focus:outline-none focus:border-emerald-400 transition"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-bold text-white/80 block">
+                    Détail des modifications faites (Changelog — une ligne par modification) :
+                  </label>
+                  <span className="text-[10px] text-white/40 font-mono">
+                    Utilisez ✨ (nouveautés), 🛠️ (correctifs), ⚡ (optimisations), 🔒 (sécurité)
+                  </span>
+                </div>
+                <textarea
+                  value={updateNotes}
+                  onChange={(e) => setUpdateNotes(e.target.value)}
+                  rows={4}
+                  required
+                  placeholder="✨ Nouveauté 1&#10;🛠️ Correction de bug&#10;⚡ Optimisation des flux&#10;🔒 Sécurité"
+                  className="w-full p-3.5 rounded-xl bg-black/60 border border-white/15 text-xs text-white font-mono placeholder-white/30 focus:outline-none focus:border-emerald-400 transition resize-y"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+                <p className="text-[10px] text-white/50 font-mono">
+                  💡 Les clients recevront une notification en temps réel. Lorsqu'ils cliquent sur "Installer", la notification disparaît et le client passe à la version v{updateVersion}.
+                </p>
+
+                <button
+                  type="submit"
+                  disabled={isPublishingUpdate || !updateVersion.trim() || !updateTitle.trim() || !updateNotes.trim()}
+                  className="w-full sm:w-auto py-2.5 px-6 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-black font-extrabold text-xs transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isPublishingUpdate ? 'Diffusion en cours...' : 'Diffuser la mise à jour (Temps Réel)'}</span>
+                </button>
+              </div>
+            </form>
           </div>
 
           {/* Form & Live Preview Grid */}

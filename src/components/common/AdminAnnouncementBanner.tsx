@@ -57,8 +57,8 @@ export function AdminAnnouncementBanner() {
     }
   };
 
-  // Only take active announcements not dismissed yet
-  const visibleAnnouncements = announcements.filter((a) => !dismissedIds.includes(a.id));
+  // Only take active announcements not dismissed yet (pinned announcements always remain visible)
+  const visibleAnnouncements = announcements.filter((a) => a.pinned || !dismissedIds.includes(a.id));
 
   if (visibleAnnouncements.length === 0) {
     return null;

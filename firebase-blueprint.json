@@ -40,8 +40,7 @@
         "mediaUrl": { "type": "string" }
       },
       "required": ["roomId", "roomName", "hostId"]
-    }
-  },
+    },
     "Payment": {
       "title": "Payment",
       "description": "Mobile Money subscription payment transactions.",
@@ -58,6 +57,19 @@
         "expiresAt": { "type": "number" }
       },
       "required": ["targetEmail", "senderPhone", "operator", "amount", "status"]
+    },
+    "AppMeta": {
+      "title": "AppMeta",
+      "description": "System metadata and app release version updates.",
+      "type": "object",
+      "properties": {
+        "version": { "type": "string" },
+        "title": { "type": "string" },
+        "notes": { "type": "array" },
+        "forceShow": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["version", "title"]
     }
   },
   "firestore": {
@@ -76,6 +88,10 @@
     "payments/{paymentId}": {
       "schema": "Payment",
       "description": "Airtel and Mobile Money customer payment documents."
+    },
+    "app_meta/{metaId}": {
+      "schema": "AppMeta",
+      "description": "Application version and update metadata."
     }
   }
 }

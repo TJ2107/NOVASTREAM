@@ -51,18 +51,18 @@ export const useAuthStore = create<AuthState>((set) => ({
               const plan = data.subscriptionPlan || 'free';
               const expiresAt = data.subscriptionExpiresAt || null;
 
-              if (plan === 'premium' && expiresAt) {
-                if (Date.now() > expiresAt) {
-                  // Expired! Downgrade to free in Firestore and app store
-                  await checkAndExpireSubscription(user.uid, 'premium', expiresAt);
-                  useAppStore.getState().setSubscriptionPlan('free', null);
-                } else {
-                  // Active VIP Premium
-                  useAppStore.getState().setSubscriptionPlan('premium', expiresAt);
-                }
+              if (plan === 'premium' && expiresAt && expiresAt > Date.now()) {
+                // Active VIP Premium
+                useAppStore.getState().setSubscriptionPlan('premium', expiresAt);
               } else {
+                if (plan === 'premium' && expiresAt && Date.now() > expiresAt) {
+                  // Expired! Downgrade to free in Firestore
+                  await checkAndExpireSubscription(user.uid, 'premium', expiresAt);
+                }
                 useAppStore.getState().setSubscriptionPlan('free', null);
               }
+            } else {
+              useAppStore.getState().setSubscriptionPlan('free', null);
             }
           }, (err) => {
             console.warn('User doc snapshot sync error (handled):', err);
@@ -71,9 +71,8 @@ export const useAuthStore = create<AuthState>((set) => ({
           console.warn('Could not establish user doc snapshot listener:', e);
         }
 
-        // Save/update user log and daily statistics with subscriptionPlan
-        const currentPlan = useAppStore.getState().subscriptionPlan || 'free';
-        await recordUserDailyLogin(user, isAdmin, currentPlan);
+        // Save/update user log and daily statistics without overriding subscriptionPlan
+        await recordUserDailyLogin(user, isAdmin);
       } else {
         set({ user: null, isAdmin: false, loading: false });
       }
@@ -91,8 +90,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const isAdmin = user.email === 'cyber.kan587@gmail.com' || false;
       set({ user, isAdmin, loading: false });
 
-      const currentPlan = useAppStore.getState().subscriptionPlan || 'free';
-      await recordUserDailyLogin(user, isAdmin, currentPlan);
+      await recordUserDailyLogin(user, isAdmin);
     } catch (error) {
       console.error('Google Sign-In error:', error);
       throw error;
